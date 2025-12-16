@@ -168,7 +168,8 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
       columnStyles: { 5: { cellWidth: 40 } } // Description column width adjusted
     });
 
-    doc.save(`Nova_HUB_Traffic_Sheet_${selectedDate}.pdf`);
+    // Open PDF in new tab
+    window.open(doc.output('bloburl'), '_blank');
   };
 
   // Sort by priority (High first) and then by date (Newest first)
@@ -181,7 +182,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
   });
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto h-[calc(100vh-140px)] flex flex-col">
+    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto md:h-[calc(100vh-140px)] h-auto flex flex-col">
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -192,7 +193,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
         </div>
         <button 
             onClick={() => setIsModalOpen(true)}
-            className="bg-nova-teal text-white px-4 py-2 rounded-lg font-bold shadow-lg hover:bg-teal-700 transition-all flex items-center gap-2"
+            className="w-full md:w-auto bg-nova-teal text-white px-4 py-2 rounded-lg font-bold shadow-lg hover:bg-teal-700 transition-all flex items-center justify-center gap-2"
         >
             <Plus size={20} /> New Request
         </button>
@@ -230,17 +231,17 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
       </div>
 
       {/* Main Content */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col flex-1 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-1 md:overflow-hidden h-auto">
           {/* Controls */}
           <div className="p-4 border-b border-gray-100 flex flex-col gap-4 bg-gray-50">
               {/* Top Row: Date, Export & Search */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                       <div className="flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-                           <Calendar size={16} className="text-gray-400 mr-2" />
+                  <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                       <div className="flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm w-full md:w-auto">
+                           <Calendar size={16} className="text-gray-400 mr-2 flex-shrink-0" />
                            <input 
                               type="date" 
-                              className="text-sm outline-none text-gray-700 bg-transparent"
+                              className="text-sm outline-none text-gray-700 bg-transparent w-full"
                               value={selectedDate}
                               onChange={(e) => setSelectedDate(e.target.value)}
                            />
@@ -248,7 +249,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                        <button 
                           onClick={handleExportPDF}
                           disabled={filteredRequests.length === 0}
-                          className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-nova-teal hover:border-nova-teal transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-nova-teal hover:border-nova-teal transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
                           title="Generate Daily Report PDF"
                        >
                            <FileDown size={18} /> Export Report
@@ -268,7 +269,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
               </div>
 
               {/* Bottom Row: Status Filters */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
                   {(['All', 'Pending', 'In Progress', 'Completed'] as const).map(status => (
                       <button
                         key={status}
@@ -286,78 +287,80 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
           </div>
 
           {/* List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="md:flex-1 md:overflow-y-auto p-4 space-y-3">
               {sortedRequests.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <div className="flex flex-col items-center justify-center h-48 md:h-full text-gray-400">
                       <Clock size={48} className="mb-2 opacity-20" />
                       <p>No requests found matching your criteria.</p>
                       <p className="text-xs text-gray-400 mt-1">Try changing the date or filters.</p>
                   </div>
               ) : (
                   sortedRequests.map(req => (
-                      <div key={req.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row gap-4 items-start md:items-center">
-                          {/* Priority Indicator Line */}
-                          <div className={`w-1.5 self-stretch rounded-full ${req.priority === 'High' ? 'bg-red-500' : req.priority === 'Medium' ? 'bg-orange-400' : 'bg-green-400'}`}></div>
+                      <div key={req.id} className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                          {/* Priority Indicator - Top strip on mobile, Side strip on desktop */}
+                          <div className={`absolute top-0 left-0 right-0 h-1.5 md:h-full md:w-1.5 md:right-auto md:bottom-0 ${req.priority === 'High' ? 'bg-red-500' : req.priority === 'Medium' ? 'bg-orange-400' : 'bg-green-400'}`}></div>
                           
-                          <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3 mb-1">
-                                  <span className="font-bold text-lg text-gray-800">Rm {req.roomNumber}</span>
-                                  <span className="text-gray-400 text-sm flex items-center gap-1">
-                                      <User size={12} /> {req.guestName}
-                                  </span>
-                                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${getPriorityColor(req.priority)}`}>
-                                      {req.priority}
-                                  </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
-                                  <span className="flex items-center gap-1 font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded">
-                                      {getCategoryIcon(req.category)} {req.category}
-                                  </span>
-                                  <span className="text-gray-300">•</span>
-                                  <span className="truncate">{req.description}</span>
-                              </div>
-                              <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
-                                  <span>Logged: {new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                  <span className="flex items-center gap-1 text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                                      <User size={10} /> by {req.loggedBy || 'Unknown'}
-                                  </span>
-                              </div>
-                          </div>
+                          <div className="p-4 pt-5 md:pt-4 md:pl-6 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                            <div className="flex-1 min-w-0 w-full">
+                                <div className="flex items-center gap-3 mb-1 flex-wrap">
+                                    <span className="font-bold text-lg text-gray-800">Rm {req.roomNumber}</span>
+                                    <span className="text-gray-400 text-sm flex items-center gap-1">
+                                        <User size={12} /> {req.guestName}
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${getPriorityColor(req.priority)}`}>
+                                        {req.priority}
+                                    </span>
+                                </div>
+                                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2 text-sm text-gray-600 mb-1">
+                                    <span className="flex items-center gap-1 font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded w-fit">
+                                        {getCategoryIcon(req.category)} {req.category}
+                                    </span>
+                                    <span className="hidden md:inline text-gray-300">•</span>
+                                    <span className="break-words">{req.description}</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
+                                    <span>Logged: {new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                    <span className="flex items-center gap-1 text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                        <User size={10} /> by {req.loggedBy || 'Unknown'}
+                                    </span>
+                                </div>
+                            </div>
 
-                          <div className="flex items-center gap-3 self-end md:self-center">
-                              <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(req.status)}`}>
-                                  {req.status}
-                              </span>
-                              
-                              <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-100">
-                                  {req.status === 'Pending' && (
-                                      <button 
-                                          onClick={() => onRequestUpdate(req.id, { status: 'In Progress' })}
-                                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" 
-                                          title="Start"
-                                      >
-                                          <Wrench size={18} />
-                                      </button>
-                                  )}
-                                  {req.status !== 'Completed' && req.status !== 'Cancelled' && (
-                                      <button 
-                                          onClick={() => onRequestUpdate(req.id, { status: 'Completed' })}
-                                          className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors" 
-                                          title="Complete"
-                                      >
-                                          <CheckCircle2 size={18} />
-                                      </button>
-                                  )}
-                                  {req.status !== 'Completed' && req.status !== 'Cancelled' && (
-                                      <button 
-                                          onClick={() => onRequestUpdate(req.id, { status: 'Cancelled' })}
-                                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors" 
-                                          title="Cancel"
-                                      >
-                                          <X size={18} />
-                                      </button>
-                                  )}
-                              </div>
+                            <div className="flex items-center gap-3 self-end md:self-center w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-gray-50 pt-3 md:pt-0 mt-2 md:mt-0">
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(req.status)}`}>
+                                    {req.status}
+                                </span>
+                                
+                                <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-100">
+                                    {req.status === 'Pending' && (
+                                        <button 
+                                            onClick={() => onRequestUpdate(req.id, { status: 'In Progress' })}
+                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" 
+                                            title="Start"
+                                        >
+                                            <Wrench size={18} />
+                                        </button>
+                                    )}
+                                    {req.status !== 'Completed' && req.status !== 'Cancelled' && (
+                                        <button 
+                                            onClick={() => onRequestUpdate(req.id, { status: 'Completed' })}
+                                            className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors" 
+                                            title="Complete"
+                                        >
+                                            <CheckCircle2 size={18} />
+                                        </button>
+                                    )}
+                                    {req.status !== 'Completed' && req.status !== 'Cancelled' && (
+                                        <button 
+                                            onClick={() => onRequestUpdate(req.id, { status: 'Cancelled' })}
+                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors" 
+                                            title="Cancel"
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
                           </div>
                       </div>
                   ))
@@ -367,8 +370,8 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
 
       {/* Add Modal */}
       {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-slide-down">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in overflow-y-auto">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-slide-down my-auto">
                   <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                       <h3 className="text-lg font-bold text-gray-800">Log New Guest Request</h3>
                       <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
@@ -376,7 +379,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                       </button>
                   </div>
                   <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Room Number</label>
                               <input 
@@ -401,7 +404,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                           </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Category</label>
                               <select 
