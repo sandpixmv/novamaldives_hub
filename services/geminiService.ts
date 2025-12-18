@@ -44,7 +44,7 @@ export const generateHandoverSummary = async (shift: ShiftData): Promise<string>
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
 
@@ -64,7 +64,7 @@ export const getSmartTaskSuggestion = async (weather: string, timeOfDay: string)
             Keep it under 15 words.
         `;
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: prompt,
         });
         return response.text || "Check lobby ambiance.";

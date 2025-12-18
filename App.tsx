@@ -12,7 +12,7 @@ import { Settings } from './components/Settings';
 import { ShiftHistory } from './components/ShiftHistory';
 import { GuestRequests } from './components/GuestRequests';
 import { ShiftData, ShiftType, TaskCategory, Task, User, ShiftAssignment, AppConfig, TaskTemplate, DailyOccupancy, GuestRequest } from './types';
-import { Menu, Search, Bell, LogOut } from 'lucide-react';
+import { Menu, Search, Bell, LogOut, X } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 
 // --- Default Data (Fallbacks & Seeds) ---
@@ -68,6 +68,7 @@ export const App: React.FC = () => {
     // App State
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [currentView, setCurrentView] = useState('dashboard');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [users, setUsers] = useState<User[]>(INITIAL_USERS);
     const [appConfig, setAppConfig] = useState<AppConfig>({
         appName: 'Nova Maldives | Front Office',
@@ -129,13 +130,13 @@ export const App: React.FC = () => {
                 setTemplates(mappedTmpl);
             } else if (tmplData && tmplData.length === 0) {
                 // Seed templates if empty
-                const dbTmpls = INITIAL_TASK_TEMPLATES.map(t => ({
+                const dbTmplls = INITIAL_TASK_TEMPLATES.map(t => ({
                     id: t.id,
                     label: t.label,
                     category: t.category,
                     shift_type: t.shiftType
                 }));
-                await supabase.from('task_templates').insert(dbTmpls);
+                await supabase.from('task_templates').insert(dbTmplls);
             }
 
             // 3. Fetch Roster
@@ -173,7 +174,9 @@ export const App: React.FC = () => {
                     priority: d.priority,
                     createdAt: d.created_at,
                     updatedAt: d.updated_at,
-                    loggedBy: d.logged_by
+                    loggedBy: d.logged_by,
+                    remarks: d.remarks,
+                    updatedBy: d.updated_by
                 }));
                 setGuestRequests(mappedRequests);
             }
@@ -187,8 +190,6 @@ export const App: React.FC = () => {
                     supportMessage: settingsData.support_message || ''
                 });
             } else if (settingsError && settingsError.code === 'PGRST116') {
-                 // PGRST116 is "The result contains 0 rows"
-                 // Seed default settings
                  const defaultConfig = {
                      id: 'global',
                      app_name: 'Nova Maldives | Front Office',
@@ -206,12 +207,9 @@ export const App: React.FC = () => {
     useEffect(() => {
         if (currentUser) {
              const todayYMD = getTodayStr();
-             // Find assignment for today
              const userAssignment = rosterAssignments.find(a => a.userId === currentUser.id && a.date === todayYMD);
-             // Default to Morning if no assignment found, otherwise use assigned shift
              const targetShiftType = userAssignment ? userAssignment.shiftType : 'Morning';
              
-             // Get Occupancy
              const todayOcc = occupancyData.find(d => d.date === todayYMD)?.percentage || 75;
 
              const shiftTasks = templates
@@ -224,7 +222,6 @@ export const App: React.FC = () => {
                 }));
              
              setCurrentShift(prev => {
-                 // Determine if we need to reset tasks (if type changed or no tasks exist)
                  const typeChanged = prev.type !== targetShiftType;
                  const hasTasks = prev.tasks.length > 0;
                  
@@ -233,7 +230,6 @@ export const App: React.FC = () => {
                      type: targetShiftType,
                      agentName: currentUser.name,
                      occupancy: todayOcc,
-                     // If type changed or no tasks, use new tasks. Otherwise keep existing progress
                      tasks: (hasTasks && !typeChanged) ? prev.tasks : shiftTasks
                  };
              });
@@ -252,6 +248,7 @@ export const App: React.FC = () => {
     const handleLogout = () => {
         setCurrentUser(null);
         setCurrentView('dashboard');
+        setIsSidebarOpen(false);
     };
 
     const startNewShift = (type: ShiftType, assignee?: User) => {
@@ -290,75 +287,45 @@ export const App: React.FC = () => {
         setCurrentShift(prev => ({ ...prev, notes }));
     };
 
-    // --- USER MANAGEMENT (Supabase) ---
+    // --- USER MANAGEMENT ---
     const addUser = async (user: Omit<User, 'id'>) => {
         const newUser = { ...user, id: `u-${Date.now()}` };
         const { error } = await supabase.from('users').insert([newUser]);
-        
-        if (!error) {
-            setUsers([...users, newUser]);
-        } else {
-            alert('Failed to add user to database.');
-            console.error(error);
-        }
+        if (!error) setUsers([...users, newUser]);
     };
     
     const editUser = async (user: User) => {
         const { error } = await supabase.from('users').update(user).eq('id', user.id);
-        
-        if (!error) {
-            setUsers(users.map(u => u.id === user.id ? user : u));
-        } else {
-            alert('Failed to update user.');
-            console.error(error);
-        }
+        if (!error) setUsers(users.map(u => u.id === user.id ? user : u));
     };
     
     const deleteUser = async (id: string) => {
         const { error } = await supabase.from('users').delete().eq('id', id);
-        
-        if (!error) {
-            setUsers(users.filter(u => u.id !== id));
-        } else {
-             alert('Failed to delete user.');
-             console.error(error);
-        }
+        if (!error) setUsers(users.filter(u => u.id !== id));
     };
 
-    // --- ROSTER MANAGEMENT (Supabase) ---
+    // --- ROSTER MANAGEMENT ---
     const handleSaveRoster = async (newAssignments: ShiftAssignment[]) => {
-        // Map to DB format (camelCase -> snake_case)
         const dbAssignments = newAssignments.map(a => ({
             id: a.id,
             date: a.date,
             shift_type: a.shiftType,
             user_id: a.userId
         }));
-
         const { error } = await supabase.from('roster_assignments').upsert(dbAssignments);
-        
         if (!error) {
             setRosterAssignments(newAssignments);
             alert('Roster saved successfully.');
-        } else {
-            alert('Failed to save roster.');
-            console.error(error);
         }
     };
 
-    // --- OCCUPANCY MANAGEMENT (Supabase) ---
+    // --- OCCUPANCY MANAGEMENT ---
     const handleUpdateOccupancy = async (newData: DailyOccupancy[]) => {
         const { error } = await supabase.from('occupancy').upsert(newData);
-        
-        if (!error) {
-            setOccupancyData(newData);
-        } else {
-            alert('Failed to save occupancy data.');
-            console.error(error);
-        }
+        if (!error) setOccupancyData(newData);
     };
 
-    // --- CHECKLIST TEMPLATES (Supabase) ---
+    // --- CHECKLIST TEMPLATES ---
     const handleAddTemplate = async (tmpl: Omit<TaskTemplate, 'id'>) => {
         const newTmpl = { ...tmpl, id: `t-${Date.now()}` };
         const dbTmpl = {
@@ -367,29 +334,16 @@ export const App: React.FC = () => {
             category: newTmpl.category,
             shift_type: newTmpl.shiftType
         };
-
         const { error } = await supabase.from('task_templates').insert([dbTmpl]);
-        
-        if (!error) {
-            setTemplates([...templates, newTmpl]);
-        } else {
-            alert('Failed to add template.');
-            console.error(error);
-        }
+        if (!error) setTemplates([...templates, newTmpl]);
     };
 
     const handleDeleteTemplate = async (id: string) => {
         const { error } = await supabase.from('task_templates').delete().eq('id', id);
-        
-        if (!error) {
-            setTemplates(templates.filter(t => t.id !== id));
-        } else {
-            alert('Failed to delete template.');
-            console.error(error);
-        }
+        if (!error) setTemplates(templates.filter(t => t.id !== id));
     };
 
-    // --- GUEST REQUESTS (Supabase) ---
+    // --- GUEST REQUESTS ---
     const handleAddRequest = async (request: Omit<GuestRequest, 'id' | 'createdAt' | 'updatedAt' | 'loggedBy'>) => {
         const user = currentUser?.name || 'Unknown Agent';
         const payload = {
@@ -401,8 +355,12 @@ export const App: React.FC = () => {
             priority: request.priority,
             logged_by: user
         };
-
         const { data, error } = await supabase.from('guest_requests').insert([payload]).select().single();
+        if (error) {
+            console.error("Error adding request:", error.message);
+            alert("Failed to add request. Please try again.");
+            return;
+        }
         if (data) {
             setGuestRequests([{
                 id: data.id,
@@ -414,7 +372,9 @@ export const App: React.FC = () => {
                 priority: data.priority,
                 createdAt: data.created_at,
                 updatedAt: data.updated_at,
-                loggedBy: data.logged_by
+                loggedBy: data.logged_by,
+                remarks: data.remarks,
+                updatedBy: data.updated_by
             }, ...guestRequests]);
         }
     };
@@ -423,19 +383,40 @@ export const App: React.FC = () => {
         const dbUpdates: any = {};
         if (updates.status) dbUpdates.status = updates.status;
         if (updates.priority) dbUpdates.priority = updates.priority;
-        if (updates.roomNumber) dbUpdates.room_number = updates.roomNumber;
-        if (updates.guestName) dbUpdates.guest_name = updates.guestName;
-        if (updates.description) dbUpdates.description = updates.description;
-        if (updates.category) dbUpdates.category = updates.category;
+        // Ensure we send values to Supabase if they exist, even if columns might be missing (Supabase will error out but we handle it)
+        if (updates.remarks !== undefined) dbUpdates.remarks = updates.remarks;
+        if (updates.updatedBy !== undefined) dbUpdates.updated_by = updates.updatedBy;
         dbUpdates.updated_at = new Date().toISOString();
-
-        const { data } = await supabase.from('guest_requests').update(dbUpdates).eq('id', id).select().single();
+        
+        const { data, error } = await supabase.from('guest_requests').update(dbUpdates).eq('id', id).select().single();
+        
+        if (error) {
+            console.error("Error updating request:", error.message);
+            // If the columns updated_by or remarks don't exist, we might get an error. 
+            // We should still update local state for the parts that did work or provide feedback.
+            alert(`Failed to update request: ${error.message}`);
+            return;
+        }
+        
         if (data) {
-            setGuestRequests(prev => prev.map(r => r.id === id ? { ...r, ...updates, updatedAt: data.updated_at } : r));
+          setGuestRequests(prev => prev.map(r => r.id === id ? { 
+            ...r, 
+            ...updates, 
+            updatedAt: data.updated_at,
+            remarks: data.remarks,
+            updatedBy: data.updated_by
+          } : r));
+        } else {
+            // Fallback: If data is null but no error, update local state optimistically
+            setGuestRequests(prev => prev.map(r => r.id === id ? { 
+                ...r, 
+                ...updates, 
+                updatedAt: dbUpdates.updated_at
+            } : r));
         }
     };
 
-    // --- SETTINGS MANAGEMENT (Supabase) ---
+    // --- SETTINGS MANAGEMENT ---
     const handleSaveSettings = async (newConfig: AppConfig) => {
         const { error } = await supabase.from('settings').upsert({
             id: 'global',
@@ -443,13 +424,7 @@ export const App: React.FC = () => {
             logo_url: newConfig.logoUrl,
             support_message: newConfig.supportMessage
         });
-
-        if (!error) {
-            setAppConfig(newConfig);
-        } else {
-            alert('Failed to save settings.');
-            console.error(error);
-        }
+        if (!error) setAppConfig(newConfig);
     };
 
     if (!currentUser) {
@@ -481,6 +456,7 @@ export const App: React.FC = () => {
                     onRequestAdd={handleAddRequest}
                     onRequestUpdate={handleUpdateRequest}
                     logoUrl={appConfig.logoUrl}
+                    currentUser={currentUser}
                 />;
             case 'shift-management':
                 return <ShiftManagement 
@@ -535,15 +511,37 @@ export const App: React.FC = () => {
     };
 
     return (
-        <div className="flex bg-gray-50 min-h-screen font-sans text-gray-900">
-             <Sidebar currentView={currentView} setCurrentView={setCurrentView} userRole={currentUser.role} appConfig={appConfig} />
+        <div className="flex bg-gray-50 min-h-screen font-sans text-gray-900 relative overflow-x-hidden">
+             {/* Mobile Backdrop */}
+             {isSidebarOpen && (
+                 <div 
+                    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 md:hidden animate-fade-in"
+                    onClick={() => setIsSidebarOpen(false)}
+                 ></div>
+             )}
+
+             <Sidebar 
+                currentView={currentView} 
+                setCurrentView={(view) => {
+                    setCurrentView(view);
+                    setIsSidebarOpen(false);
+                }} 
+                userRole={currentUser.role} 
+                appConfig={appConfig}
+                isOpen={isSidebarOpen}
+                onClose={() => setIsSidebarOpen(false)}
+             />
              
-             <div className="flex-1 md:ml-64 transition-all duration-300">
+             <div className="flex-1 md:ml-64 transition-all duration-300 w-full">
                  {/* Top Header */}
-                 <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-20">
-                     <div className="md:hidden">
-                         <Menu />
-                     </div>
+                 <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
+                     <button 
+                        className="md:hidden p-2 text-gray-600 hover:text-nova-teal transition-colors"
+                        onClick={() => setIsSidebarOpen(true)}
+                     >
+                         <Menu size={24} />
+                     </button>
+                     
                      <div className="flex items-center gap-4 ml-auto">
                          <button className="p-2 text-gray-400 hover:text-nova-teal transition-colors relative">
                              <Bell size={20} />
@@ -551,23 +549,23 @@ export const App: React.FC = () => {
                                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
                              )}
                          </button>
-                         <div className="h-8 w-px bg-gray-100 mx-2"></div>
-                         <div className="flex items-center gap-3">
-                             <div className="text-right hidden sm:block">
+                         <div className="h-8 w-px bg-gray-100 mx-1 md:mx-2"></div>
+                         <div className="flex items-center gap-2 md:gap-3">
+                             <div className="text-right hidden lg:block">
                                  <p className="text-sm font-bold text-gray-800">{currentUser.name}</p>
                                  <p className="text-xs text-gray-500">{currentUser.role}</p>
                              </div>
-                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm ${currentUser.color}`}>
+                             <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm text-xs md:text-sm ${currentUser.color}`}>
                                  {currentUser.initials}
                              </div>
-                             <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500 transition-colors ml-2" title="Logout">
+                             <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Logout">
                                  <LogOut size={20} />
                              </button>
                          </div>
                      </div>
                  </div>
 
-                 <div className="p-6">
+                 <div className="p-4 md:p-6">
                      {renderContent()}
                  </div>
              </div>

@@ -1,5 +1,4 @@
 
-
 export type ShiftType = string;
 
 export type TaskCategory = string;
@@ -85,4 +84,6 @@ export interface GuestRequest {
   updatedAt: string;
   assignedTo?: string; // userId
   loggedBy: string; // Name of the user who entered the request
+  remarks?: string; // Optional remarks added during status change
+  updatedBy?: string; // Name of user who last updated the status
 }

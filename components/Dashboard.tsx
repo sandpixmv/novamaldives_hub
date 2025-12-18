@@ -76,49 +76,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
   };
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-5xl mx-auto pb-8">
+    <div className="space-y-4 md:space-y-6 animate-fade-in max-w-5xl mx-auto pb-8 px-2 md:px-0">
         
       {/* Hero Section - Today's Assigned Shift */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative group">
           <div className="absolute top-0 left-0 w-2 h-full bg-nova-teal group-hover:w-3 transition-all duration-300"></div>
-          <div className="p-8">
+          <div className="p-5 md:p-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div>
-                      <div className="flex items-center gap-3 mb-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Today's Assigned Shift</span>
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColor}`}>{status}</span>
+                  <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                          <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-gray-400">Today's Assigned Shift</span>
+                          <span className={`px-2 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-bold ${statusColor}`}>{status}</span>
                       </div>
-                      <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                      <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 md:gap-3">
                          {getShiftIcon(currentShift.type)}
                          {currentShift.type} Shift
                       </h2>
-                      <p className="text-gray-500 mt-2 flex items-center gap-2">
-                          <CalendarCheck size={16} />
-                          {currentShift.date} 
-                          <span className="text-gray-300">|</span>
-                          <span className="text-nova-teal font-medium">{currentShift.agentName}</span>
+                      <p className="text-sm md:text-gray-500 mt-2 flex items-center gap-2 flex-wrap">
+                          <CalendarCheck size={16} className="flex-shrink-0" />
+                          <span className="whitespace-nowrap">{currentShift.date}</span>
+                          <span className="text-gray-300 hidden sm:inline">|</span>
+                          <span className="text-nova-teal font-medium truncate">{currentShift.agentName}</span>
                       </p>
                   </div>
 
-                  <div className="flex flex-col items-end gap-4">
-                      <div className="text-right">
-                          <span className="text-4xl font-bold text-nova-teal">{progress}%</span>
-                          <p className="text-xs text-gray-400 font-medium uppercase">Checklist Complete</p>
+                  <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-end gap-4 border-t md:border-t-0 pt-4 md:pt-0">
+                      <div className="text-left md:text-right">
+                          <span className="text-3xl md:text-4xl font-bold text-nova-teal">{progress}%</span>
+                          <p className="text-[10px] text-gray-400 font-medium uppercase">Complete</p>
                       </div>
                       <button 
                         onClick={openChecklist}
-                        className="bg-nova-teal text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg shadow-teal-200 hover:bg-teal-700 transition-all flex items-center gap-2 group/btn"
+                        className="bg-nova-teal text-white px-4 md:px-8 py-2 md:py-3 rounded-xl font-bold text-sm md:text-lg shadow-lg shadow-teal-200 hover:bg-teal-700 transition-all flex items-center gap-2 group/btn"
                       >
-                        {progress > 0 ? "Continue Checklist" : "Open Checklist"}
-                        <ArrowRight size={20} className="group-hover/btn:translate-x-1 transition-transform" />
+                        <span className="hidden sm:inline">{progress > 0 ? "Continue" : "Start"} Checklist</span>
+                        <span className="sm:hidden">Checklist</span>
+                        <ArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
                       </button>
                   </div>
               </div>
 
               {/* Progress Bar */}
-              <div className="mt-8 w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+              <div className="mt-6 md:mt-8 w-full bg-gray-100 rounded-full h-1.5 md:h-2 overflow-hidden">
                   <div 
-                    className="bg-nova-teal h-2 rounded-full transition-all duration-1000 ease-out relative" 
+                    className="bg-nova-teal h-full rounded-full transition-all duration-1000 ease-out relative" 
                     style={{ width: `${progress}%` }}
                   >
                       <div className="absolute top-0 right-0 bottom-0 w-10 bg-gradient-to-r from-transparent to-white/30"></div>
@@ -128,60 +129,64 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
       </div>
 
       {/* Grid Content */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
           
           {/* Quick Stats */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center space-y-2 hover:shadow-md transition-shadow">
-              <div className="p-4 bg-green-50 text-green-600 rounded-full mb-2">
-                  <CheckCircle2 size={28} />
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 flex flex-row md:flex-col justify-between md:justify-center items-center text-center gap-3 hover:shadow-md transition-shadow">
+              <div className="p-3 md:p-4 bg-green-50 text-green-600 rounded-full">
+                  <CheckCircle2 size={24} className="md:w-7 md:h-7" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-800">{completedTasks}/{totalTasks}</h3>
-              <p className="text-sm text-gray-500">Tasks Completed</p>
+              <div className="text-right md:text-center">
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-800">{completedTasks}/{totalTasks}</h3>
+                  <p className="text-xs md:text-sm text-gray-500">Tasks Done</p>
+              </div>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center space-y-2 hover:shadow-md transition-shadow">
-              <div className="p-4 bg-orange-50 text-orange-600 rounded-full mb-2">
-                  <AlertCircle size={28} />
+          <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 flex flex-row md:flex-col justify-between md:justify-center items-center text-center gap-3 hover:shadow-md transition-shadow">
+              <div className="p-3 md:p-4 bg-orange-50 text-orange-600 rounded-full">
+                  <AlertCircle size={24} className="md:w-7 md:h-7" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-800">{totalTasks - completedTasks}</h3>
-              <p className="text-sm text-gray-500">Pending Actions</p>
+              <div className="text-right md:text-center">
+                  <h3 className="text-xl md:text-2xl font-bold text-gray-800">{totalTasks - completedTasks}</h3>
+                  <p className="text-xs md:text-sm text-gray-500">Pending Actions</p>
+              </div>
           </div>
 
           {/* AI Insight */}
-           <div className="bg-gradient-to-br from-nova-teal to-teal-800 p-6 rounded-xl shadow-lg text-white relative overflow-hidden flex flex-col justify-center min-h-[160px] group">
+           <div className="bg-gradient-to-br from-nova-teal to-teal-800 p-5 md:p-6 rounded-xl shadow-lg text-white relative overflow-hidden flex flex-col justify-center min-h-[140px] md:min-h-[160px] group sm:col-span-2 md:col-span-1">
                 <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-3">
-                         <span className="bg-white/20 px-2 py-0.5 rounded text-xs font-medium backdrop-blur-sm">AI Agent Tip</span>
+                    <div className="flex items-center gap-2 mb-2 md:mb-3">
+                         <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] md:text-xs font-medium backdrop-blur-sm">AI Agent Tip</span>
                     </div>
-                    <p className="text-teal-50 text-lg font-medium leading-relaxed group-hover:text-white transition-colors">
+                    <p className="text-teal-50 text-base md:text-lg font-medium leading-relaxed group-hover:text-white transition-colors">
                         "{suggestion}"
                     </p>
                 </div>
                 {/* Decorative circles */}
-                <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+                <div className="absolute -bottom-6 -right-6 w-20 h-20 md:w-24 md:h-24 bg-white/10 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
             </div>
       </div>
 
       {/* Occupancy Forecast Chart Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 md:mb-8">
               <div>
-                  <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                      <TrendingUp size={24} className="text-nova-teal" /> 
+                  <h3 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
+                      <TrendingUp size={20} className="text-nova-teal md:w-6 md:h-6" /> 
                       Occupancy Forecast
                   </h3>
-                  <p className="text-sm text-gray-500 mt-1">7-day projection of resort occupancy levels.</p>
+                  <p className="text-xs md:text-sm text-gray-500 mt-1">7-day resort projection.</p>
               </div>
-              <div className="flex items-center gap-2 bg-nova-sand/30 px-4 py-2 rounded-xl text-nova-dark text-sm font-bold border border-nova-sand">
-                  <BarChart3 size={16} className="text-nova-teal" /> 
-                  Weekly Avg: <span className="text-nova-teal text-lg">{averageOccupancy}%</span>
+              <div className="flex items-center gap-2 bg-nova-sand/30 px-3 md:px-4 py-1.5 md:py-2 rounded-xl text-nova-dark text-xs md:text-sm font-bold border border-nova-sand w-fit">
+                  <BarChart3 size={14} className="text-nova-teal md:w-4 md:h-4" /> 
+                  Weekly Avg: <span className="text-nova-teal text-base md:text-lg">{averageOccupancy}%</span>
               </div>
           </div>
           
           {/* Main Chart */}
-          <div className="h-72 w-full mb-8 relative">
-            <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={forecastData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
+          <div className="h-48 md:h-72 w-full mb-6 md:mb-8 relative">
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <AreaChart data={forecastData} margin={{ top: 10, right: 0, left: -35, bottom: 0 }}>
                     <defs>
                         <linearGradient id="colorOccupancy" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#008B8B" stopOpacity={0.3}/>
@@ -193,16 +198,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
                         dataKey="name" 
                         axisLine={false} 
                         tickLine={false} 
-                        height={50}
+                        height={40}
                         tick={({ x, y, payload, index }) => {
                              const data = forecastData[index];
                              if (!data) return null;
                              return (
                                 <g transform={`translate(${x},${y})`}>
-                                    <text x={0} y={0} dy={16} textAnchor="middle" fill="#374151" fontSize={12} fontWeight="700">
+                                    <text x={0} y={0} dy={12} textAnchor="middle" fill="#374151" fontSize={10} fontWeight="700">
                                         {data.name}
                                     </text>
-                                    <text x={0} y={0} dy={34} textAnchor="middle" fill="#9ca3af" fontSize={11} fontWeight="500">
+                                    <text x={0} y={0} dy={26} textAnchor="middle" fill="#9ca3af" fontSize={9} fontWeight="500">
                                         {data.dayNum}
                                     </text>
                                 </g>
@@ -212,21 +217,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
                     <YAxis 
                         axisLine={false} 
                         tickLine={false} 
-                        fontSize={11} 
+                        fontSize={10} 
                         tick={{fill: '#9ca3af'}} 
                         domain={[0, 100]} 
-                        ticks={[0, 25, 50, 75, 100]}
+                        ticks={[0, 50, 100]}
                     />
                     <Tooltip 
                         contentStyle={{ 
                             borderRadius: '12px', 
                             border: 'none', 
                             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                            padding: '12px',
-                            backgroundColor: 'rgba(255, 255, 255, 0.95)'
+                            padding: '8px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                            fontSize: '12px'
                         }}
                         cursor={{ stroke: '#008B8B', strokeWidth: 1, strokeDasharray: '4 4' }}
-                        formatter={(value: number) => [<span className="font-bold text-gray-800 text-lg">{value}%</span>, <span className="text-xs text-gray-500 uppercase">Occupancy</span>]}
+                        formatter={(value: number) => [<span className="font-bold text-gray-800">{value}%</span>, <span className="text-[10px] text-gray-500 uppercase">Occupancy</span>]}
                         labelFormatter={(label, payload) => {
                             if (payload && payload.length > 0) {
                                 return payload[0].payload.shortDate;
@@ -234,43 +240,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
                             return label;
                         }}
                     />
-                    <ReferenceLine y={averageOccupancy} stroke="#FF7F50" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'Avg', fill: '#FF7F50', fontSize: 10, fontWeight: 'bold' }} />
+                    <ReferenceLine y={averageOccupancy} stroke="#FF7F50" strokeDasharray="3 3" label={{ position: 'insideTopRight', value: 'Avg', fill: '#FF7F50', fontSize: 8, fontWeight: 'bold' }} />
                     <Area 
                         type="monotone" 
                         dataKey="value" 
                         stroke="#008B8B" 
-                        strokeWidth={4}
+                        strokeWidth={3}
                         fillOpacity={1} 
                         fill="url(#colorOccupancy)" 
-                        activeDot={{ r: 6, strokeWidth: 4, stroke: '#fff', fill: '#008B8B', cursor: 'pointer' }}
+                        activeDot={{ r: 4, strokeWidth: 2, stroke: '#fff', fill: '#008B8B' }}
                     />
                 </AreaChart>
             </ResponsiveContainer>
           </div>
           
           {/* Detailed Daily Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 md:gap-3">
               {forecastData.map((day, idx) => {
                   const styles = getOccupancyColor(day.value);
-                  // Using viewBox 0 0 100 100 for better scaling logic
-                  const radius = 42;
+                  const radius = 40;
                   const circumference = 2 * Math.PI * radius;
                   const offset = circumference - (day.value / 100) * circumference;
 
                   return (
-                    <div key={idx} className={`relative p-3 rounded-2xl border ${styles.bg} ${styles.border} flex flex-col items-center justify-between group transition-all duration-300 hover:shadow-md hover:-translate-y-1`}>
+                    <div key={idx} className={`relative p-2 md:p-3 rounded-xl md:rounded-2xl border ${styles.bg} ${styles.border} flex flex-col items-center justify-between group transition-all duration-300 hover:shadow-md hover:-translate-y-0.5`}>
                         <div className="text-center w-full z-10">
-                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{day.name}</p>
-                           <p className="text-xs font-medium text-gray-500">{day.shortDate}</p>
+                           <p className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{day.name}</p>
+                           <p className="text-[10px] md:text-xs font-medium text-gray-500">{day.shortDate}</p>
                         </div>
                         
-                        <div className="my-3 relative flex items-center justify-center">
+                        <div className="my-2 md:my-3 relative flex items-center justify-center">
                             {/* SVG Circular Progress */}
-                            <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
-                                {/* Track Circle (Full 100%) */}
+                            <svg className="w-16 h-16 md:w-20 md:h-20 transform -rotate-90" viewBox="0 0 100 100">
+                                {/* Track Circle */}
                                 <circle
-                                    className="text-gray-200"
-                                    strokeWidth="10"
+                                    className="text-gray-200/50"
+                                    strokeWidth="8"
                                     stroke="currentColor"
                                     fill="transparent"
                                     r={radius}
@@ -280,7 +285,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
                                 {/* Value Circle */}
                                 <circle
                                     className={`${styles.stroke} transition-all duration-1000 ease-out`}
-                                    strokeWidth="10"
+                                    strokeWidth="8"
                                     strokeDasharray={circumference}
                                     strokeDashoffset={offset}
                                     strokeLinecap="round"
@@ -292,19 +297,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
                                 />
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                <span className={`text-xl font-bold ${styles.text}`}>
-                                    {day.value}<span className="text-xs align-top">%</span>
+                                <span className={`text-sm md:text-base font-bold ${styles.text}`}>
+                                    {day.value}<span className="text-[10px] align-top">%</span>
                                 </span>
                             </div>
                         </div>
 
-                        <div className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-white/60 ${styles.text}`}>
+                        <div className={`px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-[8px] md:text-[10px] font-bold uppercase tracking-wide bg-white/60 ${styles.text}`}>
                             {styles.label}
                         </div>
                         
-                        {/* Tooltip hint if notes exist */}
+                        {/* Indicator if notes exist */}
                         {day.notes && (
-                             <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-nova-teal animate-pulse" title={day.notes}></div>
+                             <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-nova-teal" title={day.notes}></div>
                         )}
                     </div>
                   );

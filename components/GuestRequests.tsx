@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { GuestRequest, RequestStatus, RequestPriority } from '../types';
-import { Search, Plus, Clock, CheckCircle2, AlertTriangle, User, BedDouble, Wrench, Utensils, Car, Sparkles, X, Calendar, FileDown } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { GuestRequest, RequestStatus, RequestPriority, User as AppUser } from '../types';
+import { Search, Plus, Clock, CheckCircle2, AlertTriangle, User, BedDouble, Wrench, Utensils, Car, Sparkles, X, Calendar, FileDown, MessageSquare, RotateCcw } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -9,15 +9,30 @@ interface GuestRequestsProps {
   onRequestAdd: (request: Omit<GuestRequest, 'id' | 'createdAt' | 'updatedAt' | 'loggedBy'>) => void;
   onRequestUpdate: (id: string, updates: Partial<GuestRequest>) => void;
   logoUrl?: string;
+  currentUser: AppUser;
 }
 
 const CATEGORIES = ['Housekeeping', 'Maintenance', 'Amenities', 'Food & Beverage', 'Transportation', 'Other'];
 
-export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onRequestAdd, onRequestUpdate, logoUrl }) => {
+// Helper to get local date string in YYYY-MM-DD format
+const getLocalToday = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onRequestAdd, onRequestUpdate, logoUrl, currentUser }) => {
   const [filterStatus, setFilterStatus] = useState<RequestStatus | 'All'>('All');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(getLocalToday());
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  
+  // Status Update Interaction State
+  const [updatingRequest, setUpdatingRequest] = useState<{ id: string, nextStatus: RequestStatus } | null>(null);
+  const [statusRemarks, setStatusRemarks] = useState('');
 
   // Form State
   const [newRoom, setNewRoom] = useState('');
@@ -28,7 +43,8 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
 
   // Filtering
   const filteredRequests = requests.filter(req => {
-      const reqDate = req.createdAt.split('T')[0];
+      // Ensure we have a date part to compare
+      const reqDate = req.createdAt ? req.createdAt.split('T')[0] : '';
       const matchesDate = !selectedDate || reqDate === selectedDate;
       const matchesStatus = filterStatus === 'All' || req.status === filterStatus;
       const matchesSearch = 
@@ -40,7 +56,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
       return matchesDate && matchesStatus && matchesSearch;
   });
 
-  // Stats (based on filtered view for the day)
+  // Stats (based on filtered view)
   const pendingCount = filteredRequests.filter(r => r.status === 'Pending').length;
   const inProgressCount = filteredRequests.filter(r => r.status === 'In Progress').length;
   const highPriorityCount = filteredRequests.filter(r => r.priority === 'High' && r.status !== 'Completed').length;
@@ -94,12 +110,26 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
       setIsModalOpen(false);
   };
 
+  const handleConfirmStatusUpdate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!updatingRequest) return;
+
+    onRequestUpdate(updatingRequest.id, { 
+      status: updatingRequest.nextStatus,
+      remarks: statusRemarks,
+      updatedBy: currentUser.name
+    });
+
+    setUpdatingRequest(null);
+    setStatusRemarks('');
+  };
+
   const handleExportPDF = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF('l', 'mm', 'a4');
     
     // Header
     doc.setFillColor(0, 139, 139); // Nova Teal
-    doc.rect(0, 0, 210, 24, 'F');
+    doc.rect(0, 0, 297, 24, 'F');
     
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(18);
@@ -109,14 +139,10 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
     
     if (logoUrl) {
         try {
-            // Check if logoUrl is a data URI or try to guess format
             const isDataUri = logoUrl.startsWith('data:image/');
-            // Default to PNG if format cannot be determined easily, though addImage can often infer from data URI
             const format = isDataUri ? logoUrl.split(';')[0].split('/')[1].toUpperCase() : 'PNG';
-            
-            // Add Logo (x=10, y=2, w=20, h=20)
             doc.addImage(logoUrl, format, 10, 2, 20, 20);
-            titleX = 35; // Shift title to the right
+            titleX = 35;
         } catch (e) {
             console.warn("Could not add logo to PDF:", e);
         }
@@ -137,42 +163,45 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
     // Summary Box
     doc.setDrawColor(200);
     doc.setFillColor(248, 250, 252);
-    doc.roundedRect(14, 52, 180, 14, 2, 2, 'FD');
+    doc.roundedRect(14, 52, 269, 14, 2, 2, 'FD');
     doc.setFontSize(10);
     doc.setTextColor(50);
-    doc.text(`Total Requests: ${filteredRequests.length}    |    Pending: ${pendingCount}    |    Completed: ${filteredRequests.filter(r => r.status === 'Completed').length}`, 18, 61);
+    doc.text(`Total: ${filteredRequests.length} | Pending: ${pendingCount} | In Progress: ${inProgressCount} | Completed: ${filteredRequests.filter(r => r.status === 'Completed').length}`, 18, 61);
 
     // Table
     const tableBody = filteredRequests.map(req => [
       req.roomNumber,
       req.guestName,
       req.category,
-      req.priority,
       req.status,
       req.description,
-      req.loggedBy || 'Unknown',
-      new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      req.loggedBy,
+      new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+      req.remarks || '-',
+      req.updatedBy || '-',
+      req.updatedAt ? new Date(req.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'
     ]);
 
     autoTable(doc, {
       startY: 75,
-      head: [['Room', 'Guest', 'Category', 'Priority', 'Status', 'Description', 'Logged By', 'Time']],
+      head: [['Room', 'Guest', 'Category', 'Status', 'Description', 'Logged By', 'Log Time', 'Remarks', 'Updated By', 'Update Time']],
       body: tableBody,
       headStyles: { 
           fillColor: [0, 139, 139],
-          fontSize: 9,
+          fontSize: 8,
           fontStyle: 'bold'
       },
       alternateRowStyles: { fillColor: [240, 248, 248] },
-      styles: { fontSize: 8, cellPadding: 3 },
-      columnStyles: { 5: { cellWidth: 40 } } // Description column width adjusted
+      styles: { fontSize: 7, cellPadding: 2 },
+      columnStyles: { 
+        4: { cellWidth: 40 },
+        7: { cellWidth: 40 }
+      }
     });
 
-    // Open PDF in new tab
     window.open(doc.output('bloburl'), '_blank');
   };
 
-  // Sort by priority (High first) and then by date (Newest first)
   const sortedRequests = [...filteredRequests].sort((a, b) => {
       const priorityOrder = { High: 3, Medium: 2, Low: 1 };
       if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
@@ -199,7 +228,6 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
         </button>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between">
               <div>
@@ -230,27 +258,40 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
           </div>
       </div>
 
-      {/* Main Content */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-1 md:overflow-hidden h-auto">
-          {/* Controls */}
           <div className="p-4 border-b border-gray-100 flex flex-col gap-4 bg-gray-50">
-              {/* Top Row: Date, Export & Search */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                       <div className="flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm w-full md:w-auto">
-                           <Calendar size={16} className="text-gray-400 mr-2 flex-shrink-0" />
+                       <div 
+                        className="flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm w-full md:w-auto cursor-pointer hover:border-nova-teal group transition-colors"
+                        onClick={() => dateInputRef.current?.showPicker()}
+                       >
+                           <Calendar size={16} className="text-gray-400 mr-2 flex-shrink-0 group-hover:text-nova-teal" />
                            <input 
+                              ref={dateInputRef}
                               type="date" 
-                              className="text-sm outline-none text-gray-700 bg-transparent w-full"
+                              className="text-sm outline-none text-gray-900 bg-transparent w-full cursor-pointer font-medium"
                               value={selectedDate}
                               onChange={(e) => setSelectedDate(e.target.value)}
                            />
+                           {selectedDate && (
+                             <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedDate('');
+                                }}
+                                className="ml-2 text-gray-400 hover:text-red-500 transition-colors p-1"
+                                title="Clear date filter"
+                             >
+                               <RotateCcw size={14} />
+                             </button>
+                           )}
                        </div>
                        <button 
                           onClick={handleExportPDF}
                           disabled={filteredRequests.length === 0}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-nova-teal hover:border-nova-teal transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto"
-                          title="Generate Daily Report PDF"
+                          className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-nova-teal hover:border-nova-teal transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto shadow-sm"
+                          title="Generate Hub Traffic Sheet PDF"
                        >
                            <FileDown size={18} /> Export Report
                        </button>
@@ -261,14 +302,13 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                        <input 
                          type="text" 
                          placeholder="Search room, guest..." 
-                         className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-nova-teal w-full"
+                         className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-nova-teal w-full text-gray-900 bg-white shadow-sm"
                          value={searchTerm}
                          onChange={(e) => setSearchTerm(e.target.value)}
                        />
                   </div>
               </div>
 
-              {/* Bottom Row: Status Filters */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
                   {(['All', 'Pending', 'In Progress', 'Completed'] as const).map(status => (
                       <button
@@ -277,7 +317,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                         className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${
                             filterStatus === status 
                             ? 'bg-nova-teal text-white border-nova-teal shadow-sm' 
-                            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 shadow-sm'
                         }`}
                       >
                           {status}
@@ -286,7 +326,6 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
               </div>
           </div>
 
-          {/* List */}
           <div className="md:flex-1 md:overflow-y-auto p-4 space-y-3">
               {sortedRequests.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-48 md:h-full text-gray-400">
@@ -297,7 +336,6 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
               ) : (
                   sortedRequests.map(req => (
                       <div key={req.id} className="bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                          {/* Priority Indicator - Top strip on mobile, Side strip on desktop */}
                           <div className={`absolute top-0 left-0 right-0 h-1.5 md:h-full md:w-1.5 md:right-auto md:bottom-0 ${req.priority === 'High' ? 'bg-red-500' : req.priority === 'Medium' ? 'bg-orange-400' : 'bg-green-400'}`}></div>
                           
                           <div className="p-4 pt-5 md:pt-4 md:pl-6 flex flex-col md:flex-row gap-4 items-start md:items-center">
@@ -316,13 +354,21 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                                         {getCategoryIcon(req.category)} {req.category}
                                     </span>
                                     <span className="hidden md:inline text-gray-300">•</span>
-                                    <span className="break-words">{req.description}</span>
+                                    <span className="break-words font-medium">{req.description}</span>
                                 </div>
-                                <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
-                                    <span>Logged: {new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                    <span className="flex items-center gap-1 text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                                        <User size={10} /> by {req.loggedBy || 'Unknown'}
-                                    </span>
+                                
+                                {req.remarks && (
+                                    <div className="text-xs text-teal-600 italic bg-teal-50/50 px-2 py-1 rounded border border-teal-100 flex items-start gap-1.5 mb-1 max-w-xl">
+                                        <MessageSquare size={12} className="mt-0.5 flex-shrink-0" />
+                                        <span>Remarks: {req.remarks}</span>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center gap-3 text-[10px] md:text-xs text-gray-400 mt-1 flex-wrap">
+                                    <span>Logged: {new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} by <span className="text-gray-600 font-medium">{req.loggedBy}</span></span>
+                                    {req.updatedBy && (
+                                        <span className="text-teal-600 font-medium">Updated: {new Date(req.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} by {req.updatedBy}</span>
+                                    )}
                                 </div>
                             </div>
 
@@ -334,7 +380,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                                 <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-100">
                                     {req.status === 'Pending' && (
                                         <button 
-                                            onClick={() => onRequestUpdate(req.id, { status: 'In Progress' })}
+                                            onClick={() => setUpdatingRequest({ id: req.id, nextStatus: 'In Progress' })}
                                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" 
                                             title="Start"
                                         >
@@ -343,7 +389,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                                     )}
                                     {req.status !== 'Completed' && req.status !== 'Cancelled' && (
                                         <button 
-                                            onClick={() => onRequestUpdate(req.id, { status: 'Completed' })}
+                                            onClick={() => setUpdatingRequest({ id: req.id, nextStatus: 'Completed' })}
                                             className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors" 
                                             title="Complete"
                                         >
@@ -352,7 +398,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                                     )}
                                     {req.status !== 'Completed' && req.status !== 'Cancelled' && (
                                         <button 
-                                            onClick={() => onRequestUpdate(req.id, { status: 'Cancelled' })}
+                                            onClick={() => setUpdatingRequest({ id: req.id, nextStatus: 'Cancelled' })}
                                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors" 
                                             title="Cancel"
                                         >
@@ -367,6 +413,49 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
               )}
           </div>
       </div>
+
+      {/* Status Update Remarks Modal */}
+      {updatingRequest && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-down">
+                  <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                      <h3 className="text-lg font-bold text-gray-800">Change Status: {updatingRequest.nextStatus}</h3>
+                      <button onClick={() => setUpdatingRequest(null)} className="text-gray-400 hover:text-gray-600">
+                          <X size={20} />
+                      </button>
+                  </div>
+                  <form onSubmit={handleConfirmStatusUpdate} className="p-6 space-y-4">
+                      <p className="text-sm text-gray-500">Adding remarks is recommended for status changes.</p>
+                      <div>
+                          <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Remarks / Action Taken</label>
+                          <textarea 
+                              autoFocus
+                              rows={3}
+                              placeholder="e.g. Assigned to Housekeeping attendant Ahmed..."
+                              className="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:border-nova-teal resize-none text-sm text-gray-900 bg-white"
+                              value={statusRemarks}
+                              onChange={(e) => setStatusRemarks(e.target.value)}
+                          />
+                      </div>
+                      <div className="flex gap-3">
+                          <button 
+                              type="button" 
+                              onClick={() => setUpdatingRequest(null)}
+                              className="flex-1 py-2.5 text-gray-500 hover:bg-gray-100 rounded-xl font-medium"
+                          >
+                              Cancel
+                          </button>
+                          <button 
+                              type="submit" 
+                              className="flex-1 py-2.5 bg-nova-teal text-white rounded-xl font-bold shadow-lg hover:bg-teal-700 transition-all"
+                          >
+                              Update Status
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
 
       {/* Add Modal */}
       {isModalOpen && (
@@ -386,7 +475,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                                   type="text" 
                                   required
                                   placeholder="e.g. 101"
-                                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal"
+                                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal text-gray-900 bg-white"
                                   value={newRoom}
                                   onChange={(e) => setNewRoom(e.target.value)}
                               />
@@ -397,7 +486,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                                   type="text" 
                                   required
                                   placeholder="e.g. Mr. Smith"
-                                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal"
+                                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal text-gray-900 bg-white"
                                   value={newGuest}
                                   onChange={(e) => setNewGuest(e.target.value)}
                               />
@@ -408,7 +497,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                           <div>
                               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Category</label>
                               <select 
-                                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal bg-white"
+                                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal bg-white text-gray-900"
                                   value={newCategory}
                                   onChange={(e) => setNewCategory(e.target.value)}
                               >
@@ -418,7 +507,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                           <div>
                               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Priority</label>
                               <select 
-                                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal bg-white"
+                                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal bg-white text-gray-900"
                                   value={newPriority}
                                   onChange={(e) => setNewPriority(e.target.value as RequestPriority)}
                               >
@@ -435,7 +524,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                               required
                               rows={3}
                               placeholder="Describe the request details..."
-                              className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal resize-none"
+                              className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal resize-none text-gray-900 bg-white"
                               value={newDesc}
                               onChange={(e) => setNewDesc(e.target.value)}
                           />
