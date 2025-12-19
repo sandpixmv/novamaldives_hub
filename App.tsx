@@ -18,14 +18,18 @@ import { supabase } from './services/supabaseClient';
 // --- Utils ---
 export const getOperationalDate = () => {
   const now = new Date();
-  const cutoff = new Date(now);
-  cutoff.setHours(11, 0, 0, 0);
+  const operationalDate = new Date(now);
   
-  const opDate = new Date(now);
-  if (now >= cutoff) {
-    opDate.setDate(now.getDate() + 1);
+  // Refresh at 08:00 AM daily.
+  // If it's before 8:00 AM, the operational date is still the previous calendar day.
+  if (now.getHours() < 8) {
+    operationalDate.setDate(now.getDate() - 1);
   }
-  return opDate.toISOString().split('T')[0];
+  
+  const year = operationalDate.getFullYear();
+  const month = String(operationalDate.getMonth() + 1).padStart(2, '0');
+  const day = String(operationalDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const SHIFT_DEFINITIONS = [
@@ -158,9 +162,16 @@ export const App: React.FC = () => {
     useEffect(() => {
         if (currentUser && currentShift.tasks.length === 0 && templates.length > 0) {
             const hour = new Date().getHours();
-            let targetType = SHIFT_DEFINITIONS[0]; 
-            if (hour >= 14 && hour < 23) targetType = SHIFT_DEFINITIONS[1]; 
-            else if (hour >= 23 || hour < 7) targetType = SHIFT_DEFINITIONS[2]; 
+            let targetType = SHIFT_DEFINITIONS[0]; // Default Morning
+            
+            // Align with 08:00 refresh and hotel logic
+            if (hour >= 23 || hour < 8) {
+                targetType = SHIFT_DEFINITIONS[2]; // Night Shift
+            } else if (hour >= 14 && hour < 23) {
+                targetType = SHIFT_DEFINITIONS[1]; // Afternoon Shift
+            } else {
+                targetType = SHIFT_DEFINITIONS[0]; // Morning Shift
+            }
 
             const fullTypeName = `${targetType.name} Shift (${targetType.range})`;
             handleShiftTypeChange(fullTypeName);
