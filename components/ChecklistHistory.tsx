@@ -210,23 +210,22 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
     const splitNotes = doc.splitTextToSize(record.notes || "No operational notes recorded for this shift.", 182);
     doc.text(splitNotes, 14, 82);
 
-    // Task Table
+    // Task Table - Category column removed
     const tableBody = tasks.map(t => [
-        (t.category || '').toUpperCase(),
         t.label || '',
         t.isCompleted ? '[ X ] DONE' : '[   ] PENDING'
     ]);
 
     autoTable(doc, {
         startY: 95 + (splitNotes.length * 5),
-        head: [['Category', 'Task Description', 'Status']],
+        head: [['Task Description', 'Status']],
         body: tableBody,
         headStyles: { 
             fillColor: [0, 139, 139],
             fontSize: 8
         },
         styles: { fontSize: 8 },
-        columnStyles: { 0: { cellWidth: 30 }, 2: { cellWidth: 30 } }
+        columnStyles: { 1: { cellWidth: 40 } }
     });
 
     window.open(doc.output('bloburl'), '_blank');
