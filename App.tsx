@@ -54,7 +54,7 @@ export const App: React.FC = () => {
     const [occupancyData, setOccupancyData] = useState<DailyOccupancy[]>([]);
     const [guestRequests, setGuestRequests] = useState<GuestRequest[]>([]);
     const [submittedShiftsToday, setSubmittedShiftsToday] = useState<string[]>([]);
-    const [categories, setCategories] = useState<TaskCategory[]>(['Arrivals', 'Departures', 'Operations', 'Cashiering', 'Concierge']);
+    const [categories, setCategories] = useState<TaskCategory[]>([]);
 
     const [currentShift, setCurrentShift] = useState<ShiftData>({
         id: 's1',
@@ -104,6 +104,15 @@ export const App: React.FC = () => {
                 remarks: r.remarks,
                 updatedBy: r.updated_by
             })));
+
+            // Fetch Categories from DB
+            const { data: catData } = await supabase.from('task_categories').select('name').order('name');
+            if (catData?.length) {
+                setCategories(catData.map(c => c.name));
+            } else {
+                // Fallback default categories if table is empty
+                setCategories(['Arrivals', 'Departures', 'Operations', 'Cashiering', 'Concierge']);
+            }
 
             const { data: settingsData } = await supabase.from('settings').select('*').eq('id', 'global').maybeSingle();
             if (settingsData) setAppConfig({
@@ -282,6 +291,27 @@ export const App: React.FC = () => {
         }
     };
 
+    const handleAddCategory = async (name: string) => {
+        try {
+            const { error } = await supabase.from('task_categories').insert([{ name }]);
+            if (error) throw error;
+            setCategories(prev => [...prev, name].sort());
+        } catch (err: any) {
+            alert("Error adding category: " + err.message);
+        }
+    };
+
+    const handleDeleteCategory = async (name: string) => {
+        if (!window.confirm(`Are you sure you want to delete category "${name}"? Existing tasks in this category will remain but the category will be removed from future selection.`)) return;
+        try {
+            const { error } = await supabase.from('task_categories').delete().eq('name', name);
+            if (error) throw error;
+            setCategories(prev => prev.filter(c => c !== name));
+        } catch (err: any) {
+            alert("Error deleting category: " + err.message);
+        }
+    };
+
     const toggleTask = (taskId: string) => {
         if (currentShift.status === 'submitted') return;
         setCurrentShift(prev => ({
@@ -320,7 +350,7 @@ export const App: React.FC = () => {
                             case 'users': return <UserManagement users={users} onAddUser={async (u) => { const {data} = await supabase.from('users').insert([u]).select(); if(data) setUsers(prev => [...prev, data[0] as User]); }} onEditUser={async (u) => { await supabase.from('users').update(u).eq('id', u.id); setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr)); }} onDeleteUser={async (id) => { await supabase.from('users').delete().eq('id', id); setUsers(prev => prev.filter(u => u.id !== id)); }} />;
                             case 'shift-management': return <ShiftManagement users={users} currentShift={currentShift} onAssignShift={()=>{}} initialAssignments={[]} onSaveRoster={()=>{}} availableShifts={shiftTypes} />;
                             case 'occupancy': return <OccupancyManagement occupancyData={occupancyData} onUpdateOccupancy={async (d) => { await supabase.from('occupancy').upsert(d); setOccupancyData(d); }} />;
-                            case 'checklist-management': return <ChecklistManagement templates={templates} availableShifts={shiftTypes} availableCategories={categories} onAddTemplate={async (t) => { const {data} = await supabase.from('task_templates').insert([{label: t.label, category: t.category, shift_type: t.shiftType}]).select(); if(data) setTemplates(prev => [...prev, {id: data[0].id, label: data[0].label, category: data[0].category, shiftType: data[0].shift_type}]); }} onDeleteTemplate={async (id) => { await supabase.from('task_templates').delete().eq('id', id); setTemplates(prev => prev.filter(t => t.id !== id)); }} onAddShift={()=>{}} onDeleteShift={()=>{}} onAddCategory={()=>{}} onDeleteCategory={()=>{}} />;
+                            case 'checklist-management': return <ChecklistManagement templates={templates} availableShifts={shiftTypes} availableCategories={categories} onAddTemplate={async (t) => { const {data} = await supabase.from('task_templates').insert([{label: t.label, category: t.category, shift_type: t.shiftType}]).select(); if(data) setTemplates(prev => [...prev, {id: data[0].id, label: data[0].label, category: data[0].category, shiftType: data[0].shift_type}]); }} onDeleteTemplate={async (id) => { await supabase.from('task_templates').delete().eq('id', id); setTemplates(prev => prev.filter(t => t.id !== id)); }} onAddShift={()=>{}} onDeleteShift={()=>{}} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />;
                             case 'admin': return <AdminDashboard />;
                             case 'settings': return <Settings userRole={currentUser.role} config={appConfig} onSave={async (c) => { await supabase.from('settings').upsert({id: 'global', app_name: c.appName, logo_url: c.logoUrl, support_message: c.supportMessage}); setAppConfig(c); }} />;
                             default: return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={handleShiftTypeChange} onOpenView={(view) => setCurrentView(view)} />;
