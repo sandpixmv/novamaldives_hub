@@ -1,12 +1,11 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { ShiftData } from '../types';
 
-// Fix: Strictly follow Google GenAI SDK initialization guidelines using process.env.API_KEY directly
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const generateHandoverSummary = async (shift: ShiftData): Promise<string> => {
   try {
+    // Initialize inside the function to prevent top-level execution errors
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
     const completedCount = shift.tasks.filter(t => t.isCompleted).length;
     const totalCount = shift.tasks.length;
     const pendingTasks = shift.tasks.filter(t => !t.isCompleted).map(t => `- ${t.label} (${t.category})`).join('\n');
@@ -52,6 +51,7 @@ export const generateHandoverSummary = async (shift: ShiftData): Promise<string>
 
 export const getSmartTaskSuggestion = async (weather: string, timeOfDay: string): Promise<string> => {
     try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const prompt = `
             Given the current weather is "${weather}" and it is "${timeOfDay}" at a luxury Maldives resort.
             Suggest one specific, actionable task for a Front Desk agent to improve guest experience right now.
