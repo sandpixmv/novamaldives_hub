@@ -21,7 +21,6 @@ export const getOperationalDate = () => {
   const operationalDate = new Date(now);
   
   // Refresh at 08:00 AM daily.
-  // If it's before 8:00 AM, the operational date is still the previous calendar day.
   if (now.getHours() < 8) {
     operationalDate.setDate(now.getDate() - 1);
   }
@@ -82,9 +81,12 @@ export const App: React.FC = () => {
             if (userData?.length) setUsers(userData);
 
             const { data: tmplData } = await supabase.from('task_templates').select('*');
-            if (tmplData) setTemplates(tmplData.map((t: any) => ({
-                id: t.id, label: t.label, category: t.category, shiftType: t.shift_type
-            })));
+            if (tmplData) {
+              const mappedTemplates = tmplData.map((t: any) => ({
+                  id: t.id, label: t.label, category: t.category, shiftType: t.shift_type
+              }));
+              setTemplates(mappedTemplates);
+            }
 
             const { data: occData } = await supabase.from('occupancy').select('*');
             if (occData) setOccupancyData(occData);
@@ -109,12 +111,10 @@ export const App: React.FC = () => {
                 updatedBy: r.updated_by
             })));
 
-            // Fetch Categories from DB
             const { data: catData } = await supabase.from('task_categories').select('name').order('name');
             if (catData?.length) {
                 setCategories(catData.map(c => c.name));
             } else {
-                // Fallback default categories if table is empty
                 setCategories(['Arrivals', 'Departures', 'Operations', 'Cashiering', 'Concierge']);
             }
 
@@ -133,13 +133,22 @@ export const App: React.FC = () => {
         fetchAllData();
     }, []);
 
-    const initTasksForShift = (type: string, user: User): ShiftData => {
+    const initTasksForShift = (type: string, user: User, latestTemplates?: TaskTemplate[]): ShiftData => {
         const opDate = getOperationalDate();
         const todayOcc = occupancyData.find(d => d.date === opDate)?.percentage || 75;
-        const baseType = (type || '').split(' ')[0]; 
+        
+        // Ensure we handle both short names (Morning) and long names (Morning Shift...)
+        const baseType = (type || '').split(' ')[0].toUpperCase(); 
+        const activeTemplates = latestTemplates || templates;
 
-        const shiftTasks = templates
-           .filter(t => t.shiftType === 'ALL' || t.shiftType === baseType)
+        const shiftTasks = activeTemplates
+           .filter(t => {
+               const target = (t.shiftType || '').toUpperCase();
+               return target === 'ALL' || 
+                      target === baseType || 
+                      target === type.toUpperCase() ||
+                      type.toUpperCase().includes(target);
+           })
            .map(t => ({
                id: `t-${Date.now()}-${t.id}`,
                label: t.label,
@@ -159,29 +168,31 @@ export const App: React.FC = () => {
         };
     };
 
+    // Auto-select shift on load or template refresh
     useEffect(() => {
-        if (currentUser && currentShift.tasks.length === 0 && templates.length > 0) {
+        if (currentUser && templates.length > 0 && currentShift.tasks.length === 0) {
             const hour = new Date().getHours();
-            let targetType = SHIFT_DEFINITIONS[0]; // Default Morning
+            let targetType = SHIFT_DEFINITIONS[0];
             
-            // Align with 08:00 refresh and hotel logic
             if (hour >= 23 || hour < 8) {
-                targetType = SHIFT_DEFINITIONS[2]; // Night Shift
+                targetType = SHIFT_DEFINITIONS[2]; // Night
             } else if (hour >= 14 && hour < 23) {
-                targetType = SHIFT_DEFINITIONS[1]; // Afternoon Shift
+                targetType = SHIFT_DEFINITIONS[1]; // Afternoon
             } else {
-                targetType = SHIFT_DEFINITIONS[0]; // Morning Shift
+                targetType = SHIFT_DEFINITIONS[0]; // Morning
             }
 
             const fullTypeName = `${targetType.name} Shift (${targetType.range})`;
-            handleShiftTypeChange(fullTypeName);
+            handleShiftTypeChange(fullTypeName, templates);
         }
     }, [currentUser?.id, templates]);
 
-    const handleShiftTypeChange = async (type: string) => {
+    const handleShiftTypeChange = async (type: string, latestTemplates?: TaskTemplate[]) => {
         if (!currentUser) return;
         const opDate = getOperationalDate();
-        let newShift = initTasksForShift(type, currentUser);
+        
+        // Always generate a fresh set based on current templates
+        let newShift = initTasksForShift(type, currentUser, latestTemplates);
         
         try {
             const { data: record } = await supabase
@@ -192,11 +203,13 @@ export const App: React.FC = () => {
                 .maybeSingle();
             
             if (record) {
-                try {
-                  newShift.tasks = JSON.parse(record.tasks_json || '[]');
-                } catch (e) {
-                  console.error("Failed to parse shift tasks:", e);
+                const savedTasks: Task[] = JSON.parse(record.tasks_json || '[]');
+                
+                // If there are saved tasks, use them. Otherwise, keep the template-initialized tasks.
+                if (savedTasks.length > 0) {
+                    newShift.tasks = savedTasks;
                 }
+                
                 newShift.notes = record.notes || '';
                 newShift.agentName = record.agent_name || newShift.agentName;
                 newShift.status = record.status === 'submitted' ? 'submitted' : 'draft';
@@ -354,8 +367,8 @@ export const App: React.FC = () => {
                  <div className="p-4 md:p-6"> 
                     {(() => {
                         switch(currentView) {
-                            case 'dashboard': return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={handleShiftTypeChange} onOpenView={(view) => setCurrentView(view)} />;
-                            case 'checklist': return <Checklist shift={currentShift} availableShiftTypes={shiftTypes} submittedShiftsToday={submittedShiftsToday} userRole={currentUser.role} onToggleTask={toggleTask} onUpdateNotes={(n) => setCurrentShift(prev => ({...prev, notes: n}))} onShiftTypeChange={handleShiftTypeChange} onSubmitShift={() => saveShift(true)} onSaveDraft={() => saveShift(false)} onReopenShift={() => handleReopenShift(currentShift.date, currentShift.type)} />;
+                            case 'dashboard': return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onOpenView={(view) => setCurrentView(view)} />;
+                            case 'checklist': return <Checklist shift={currentShift} availableShiftTypes={shiftTypes} submittedShiftsToday={submittedShiftsToday} userRole={currentUser.role} onToggleTask={toggleTask} onUpdateNotes={(n) => setCurrentShift(prev => ({...prev, notes: n}))} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onSubmitShift={() => saveShift(true)} onSaveDraft={() => saveShift(false)} onReopenShift={() => handleReopenShift(currentShift.date, currentShift.type)} />;
                             case 'checklist-history': return <ChecklistHistory userRole={currentUser.role} onReopenShift={handleReopenShift} appConfig={appConfig} />;
                             case 'guest-requests': return <GuestRequests requests={guestRequests} onRequestAdd={handleAddGuestRequest} onRequestUpdate={handleUpdateGuestRequest} logoUrl={appConfig.logoUrl} currentUser={currentUser} />;
                             case 'users': return <UserManagement users={users} onAddUser={async (u) => { const {data} = await supabase.from('users').insert([u]).select(); if(data) setUsers(prev => [...prev, data[0] as User]); }} onEditUser={async (u) => { await supabase.from('users').update(u).eq('id', u.id); setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr)); }} onDeleteUser={async (id) => { await supabase.from('users').delete().eq('id', id); setUsers(prev => prev.filter(u => u.id !== id)); }} />;
@@ -364,7 +377,7 @@ export const App: React.FC = () => {
                             case 'checklist-management': return <ChecklistManagement templates={templates} availableShifts={shiftTypes} availableCategories={categories} onAddTemplate={async (t) => { const {data} = await supabase.from('task_templates').insert([{label: t.label, category: t.category, shift_type: t.shiftType}]).select(); if(data) setTemplates(prev => [...prev, {id: data[0].id, label: data[0].label, category: data[0].category, shiftType: data[0].shift_type}]); }} onDeleteTemplate={async (id) => { await supabase.from('task_templates').delete().eq('id', id); setTemplates(prev => prev.filter(t => t.id !== id)); }} onAddShift={()=>{}} onDeleteShift={()=>{}} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />;
                             case 'admin': return <AdminDashboard />;
                             case 'settings': return <Settings userRole={currentUser.role} config={appConfig} onSave={async (c) => { await supabase.from('settings').upsert({id: 'global', app_name: c.appName, logo_url: c.logoUrl, support_message: c.supportMessage}); setAppConfig(c); }} />;
-                            default: return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={handleShiftTypeChange} onOpenView={(view) => setCurrentView(view)} />;
+                            default: return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onOpenView={(view) => setCurrentView(view)} />;
                         }
                     })()}
                  </div>
