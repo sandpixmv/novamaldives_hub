@@ -1,4 +1,3 @@
-
 export type ShiftType = string;
 
 export type TaskCategory = string;
@@ -24,10 +23,11 @@ export interface ShiftData {
   type: ShiftType;
   date: string;
   tasks: Task[];
-  status: 'active' | 'completed';
+  status: 'draft' | 'submitted';
   agentName: string;
   occupancy: number; // Mock percentage
   notes: string;
+  submittedAt?: string;
 }
 
 export interface ChartDataPoint {

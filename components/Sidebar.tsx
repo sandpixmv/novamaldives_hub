@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, CheckSquare, History, Settings, LifeBuoy, BarChart3, Users, Briefcase, ListChecks, TrendingUp, BellRing, X } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, History, Settings, LifeBuoy, BarChart3, Users, Briefcase, ListChecks, TrendingUp, BellRing, X, ClipboardList } from 'lucide-react';
 import { UserRole, AppConfig } from '../types';
 
 interface SidebarProps {
@@ -21,7 +21,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, u
   } else {
       navItems = [
         { id: 'dashboard', label: 'My Dashboard', icon: <LayoutDashboard size={20} /> },
-        { id: 'checklist', label: 'Current Shift', icon: <CheckSquare size={20} /> },
+        { id: 'checklist', label: 'Shift Check List', icon: <CheckSquare size={20} /> },
         { id: 'guest-requests', label: 'Guest Requests', icon: <BellRing size={20} /> },
       ];
       
@@ -34,7 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, u
           navItems.push({ id: 'admin', label: 'Admin Overview', icon: <BarChart3 size={20} /> });
       }
 
-      navItems.push({ id: 'history', label: 'Shift History', icon: <History size={20} /> });
+      navItems.push({ id: 'checklist-history', label: 'Checklist History', icon: <ClipboardList size={20} /> });
 
       if (userRole === 'Front Office Manager') {
           navItems.push({ id: 'users', label: 'Team Management', icon: <Users size={20} /> });

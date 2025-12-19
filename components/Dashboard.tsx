@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ShiftData, ShiftType, User, DailyOccupancy } from '../types';
-import { CheckCircle2, Clock, AlertCircle, ArrowRight, Sunrise, Sun, Moon, CalendarCheck, TrendingUp, Info, BarChart3 } from 'lucide-react';
+import { ShiftData, ShiftType, User, DailyOccupancy, GuestRequest } from '../types';
+import { CheckCircle2, Clock, AlertCircle, ArrowRight, Sunrise, Sun, Moon, CalendarCheck, TrendingUp, Info, BarChart3, ChevronDown, BellRing, User as UserIcon, MapPin } from 'lucide-react';
 import { getSmartTaskSuggestion } from '../services/geminiService';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
@@ -12,23 +12,32 @@ interface DashboardProps {
   currentUser: User | null;
   availableShifts: string[];
   occupancyData: DailyOccupancy[];
+  guestRequests: GuestRequest[];
+  onShiftTypeChange?: (type: string) => void;
+  onOpenView?: (view: string) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklist, occupancyData }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklist, occupancyData, availableShifts, guestRequests, onShiftTypeChange, onOpenView }) => {
   const [suggestion, setSuggestion] = useState<string>("Loading smart suggestion...");
   
   const completedTasks = currentShift.tasks.filter(t => t.isCompleted).length;
   const totalTasks = currentShift.tasks.length;
   const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
+  // Pending Guest Requests
+  const pendingRequests = guestRequests.filter(r => r.status === 'Pending' || r.status === 'In Progress').slice(0, 5);
+
   // Determine status
-  let status = "Not Started";
+  let statusText = "Not Started";
   let statusColor = "bg-gray-100 text-gray-600";
-  if (progress === 100 && totalTasks > 0) {
-      status = "Completed";
+  if (currentShift.status === 'submitted') {
+      statusText = "Submitted";
       statusColor = "bg-green-100 text-green-700";
-  } else if (progress > 0) {
-      status = "In Progress";
+  } else if (progress === 100 && totalTasks > 0) {
+      statusText = "Completed";
+      statusColor = "bg-green-100 text-green-700";
+  } else if (progress > 0 || currentShift.status === 'draft') {
+      statusText = "In Progress";
       statusColor = "bg-blue-100 text-blue-700";
   }
 
@@ -42,6 +51,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
       if (lower.includes('afternoon')) return <Sun size={24} className="text-yellow-500" />;
       if (lower.includes('night')) return <Moon size={24} className="text-indigo-500" />;
       return <Clock size={24} className="text-gray-500" />;
+  };
+
+  const getPriorityColor = (p: string) => {
+    switch(p) {
+        case 'High': return 'text-red-600 bg-red-50 border-red-100';
+        case 'Medium': return 'text-orange-600 bg-orange-50 border-orange-100';
+        default: return 'text-green-600 bg-green-50 border-green-100';
+    }
   };
 
   // Prepare Forecast Data
@@ -85,13 +102,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2 flex-wrap">
-                          <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-gray-400">Today's Assigned Shift</span>
-                          <span className={`px-2 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-bold ${statusColor}`}>{status}</span>
+                          <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider text-gray-400">Selected Operational Shift</span>
+                          <span className={`px-2 md:px-3 py-0.5 md:py-1 rounded-full text-[10px] md:text-xs font-bold ${statusColor}`}>{statusText}</span>
                       </div>
-                      <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 md:gap-3">
+                      
+                      <div className="flex items-center gap-3 relative w-fit group/title">
                          {getShiftIcon(currentShift.type)}
-                         {currentShift.type} Shift
-                      </h2>
+                         <div className="relative inline-flex items-center">
+                            <select 
+                                value={currentShift.type}
+                                onChange={(e) => onShiftTypeChange?.(e.target.value)}
+                                className="text-2xl md:text-3xl font-bold text-gray-800 bg-transparent border-none appearance-none pr-8 cursor-pointer focus:outline-none focus:ring-2 focus:ring-nova-teal/20 rounded-lg hover:text-nova-teal transition-colors"
+                            >
+                                {availableShifts.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 group-hover/title:text-nova-teal transition-colors pointer-events-none" size={20} />
+                         </div>
+                      </div>
+
                       <p className="text-sm md:text-gray-500 mt-2 flex items-center gap-2 flex-wrap">
                           <CalendarCheck size={16} className="flex-shrink-0" />
                           <span className="whitespace-nowrap">{currentShift.date}</span>
@@ -129,42 +157,84 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
       </div>
 
       {/* Grid Content */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
-          {/* Quick Stats */}
-          <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 flex flex-row md:flex-col justify-between md:justify-center items-center text-center gap-3 hover:shadow-md transition-shadow">
-              <div className="p-3 md:p-4 bg-green-50 text-green-600 rounded-full">
-                  <CheckCircle2 size={24} className="md:w-7 md:h-7" />
-              </div>
-              <div className="text-right md:text-center">
-                  <h3 className="text-xl md:text-2xl font-bold text-gray-800">{completedTasks}/{totalTasks}</h3>
-                  <p className="text-xs md:text-sm text-gray-500">Tasks Done</p>
-              </div>
-          </div>
+          {/* Main Dashboard Stats & AI Insight */}
+          <div className="md:col-span-2 space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+                      <div className="p-3 bg-green-50 text-green-600 rounded-full">
+                          <CheckCircle2 size={24} />
+                      </div>
+                      <div>
+                          <h3 className="text-xl font-bold text-gray-800">{completedTasks}/{totalTasks}</h3>
+                          <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Tasks Done</p>
+                      </div>
+                  </div>
 
-          <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100 flex flex-row md:flex-col justify-between md:justify-center items-center text-center gap-3 hover:shadow-md transition-shadow">
-              <div className="p-3 md:p-4 bg-orange-50 text-orange-600 rounded-full">
-                  <AlertCircle size={24} className="md:w-7 md:h-7" />
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+                      <div className="p-3 bg-orange-50 text-orange-600 rounded-full">
+                          <AlertCircle size={24} />
+                      </div>
+                      <div>
+                          <h3 className="text-xl font-bold text-gray-800">{totalTasks - completedTasks}</h3>
+                          <p className="text-xs text-gray-500 uppercase font-bold tracking-wider">Pending Tasks</p>
+                      </div>
+                  </div>
               </div>
-              <div className="text-right md:text-center">
-                  <h3 className="text-xl md:text-2xl font-bold text-gray-800">{totalTasks - completedTasks}</h3>
-                  <p className="text-xs md:text-sm text-gray-500">Pending Actions</p>
-              </div>
-          </div>
 
-          {/* AI Insight */}
-           <div className="bg-gradient-to-br from-nova-teal to-teal-800 p-5 md:p-6 rounded-xl shadow-lg text-white relative overflow-hidden flex flex-col justify-center min-h-[140px] md:min-h-[160px] group sm:col-span-2 md:col-span-1">
+              {/* AI Insight */}
+              <div className="bg-gradient-to-br from-nova-teal to-teal-800 p-6 rounded-xl shadow-lg text-white relative overflow-hidden flex flex-col justify-center min-h-[140px] group">
                 <div className="relative z-10">
-                    <div className="flex items-center gap-2 mb-2 md:mb-3">
-                         <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] md:text-xs font-medium backdrop-blur-sm">AI Agent Tip</span>
+                    <div className="flex items-center gap-2 mb-3">
+                         <span className="bg-white/20 px-2 py-0.5 rounded text-xs font-medium backdrop-blur-sm">AI Agent Tip</span>
                     </div>
-                    <p className="text-teal-50 text-base md:text-lg font-medium leading-relaxed group-hover:text-white transition-colors">
+                    <p className="text-teal-50 text-lg font-medium leading-relaxed group-hover:text-white transition-colors">
                         "{suggestion}"
                     </p>
                 </div>
-                {/* Decorative circles */}
-                <div className="absolute -bottom-6 -right-6 w-20 h-20 md:w-24 md:h-24 bg-white/10 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
-            </div>
+                <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-white/10 rounded-full group-hover:scale-150 transition-transform duration-700"></div>
+              </div>
+          </div>
+
+          {/* Live Guest Requests Feed */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
+              <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+                  <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                      <BellRing size={16} className="text-nova-accent" /> 
+                      Live Guest Requests
+                  </h3>
+                  <button onClick={() => onOpenView?.('guest-requests')} className="text-[10px] font-bold text-nova-teal hover:underline flex items-center gap-0.5">
+                      View All <ArrowRight size={10} />
+                  </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-2 max-h-[280px]">
+                  {pendingRequests.length > 0 ? pendingRequests.map(req => (
+                      <div key={req.id} className="p-3 rounded-lg border border-gray-100 hover:border-nova-teal/30 hover:bg-teal-50/10 transition-all cursor-pointer group/req" onClick={() => onOpenView?.('guest-requests')}>
+                          <div className="flex justify-between items-start mb-1">
+                              <span className="font-bold text-sm text-gray-800">Rm {req.roomNumber}</span>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${getPriorityColor(req.priority)}`}>
+                                  {req.priority}
+                              </span>
+                          </div>
+                          <p className="text-xs text-gray-500 truncate mb-1.5">{req.description}</p>
+                          <div className="flex items-center justify-between">
+                              <span className="text-[9px] text-gray-400 flex items-center gap-1 font-medium">
+                                  <Clock size={10} /> {new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              <span className="text-[9px] font-bold text-nova-teal bg-teal-50 px-1.5 py-0.5 rounded">
+                                  {req.status}
+                              </span>
+                          </div>
+                      </div>
+                  )) : (
+                      <div className="flex flex-col items-center justify-center h-48 text-gray-300">
+                          <BellRing size={32} className="opacity-10 mb-2" />
+                          <p className="text-xs">No pending requests</p>
+                      </div>
+                  )}
+              </div>
+          </div>
       </div>
 
       {/* Occupancy Forecast Chart Section */}
@@ -183,8 +253,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
               </div>
           </div>
           
-          {/* Main Chart */}
-          <div className="h-48 md:h-72 w-full mb-6 md:mb-8 relative">
+          {/* Main Chart Wrapper - Ensures no padding on the measurement container */}
+          <div className="h-48 md:h-72 w-full mb-6 md:mb-8 relative overflow-hidden">
             <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                 <AreaChart data={forecastData} margin={{ top: 10, right: 0, left: -35, bottom: 0 }}>
                     <defs>

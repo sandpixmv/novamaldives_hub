@@ -1,17 +1,12 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { ShiftData } from '../types';
 
-const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API_KEY environment variable is not set");
-  }
-  return new GoogleGenAI({ apiKey });
-};
+// Fix: Strictly follow Google GenAI SDK initialization guidelines using process.env.API_KEY directly
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateHandoverSummary = async (shift: ShiftData): Promise<string> => {
   try {
-    const ai = getAiClient();
     const completedCount = shift.tasks.filter(t => t.isCompleted).length;
     const totalCount = shift.tasks.length;
     const pendingTasks = shift.tasks.filter(t => !t.isCompleted).map(t => `- ${t.label} (${t.category})`).join('\n');
@@ -51,13 +46,12 @@ export const generateHandoverSummary = async (shift: ShiftData): Promise<string>
     return response.text || "Unable to generate summary.";
   } catch (error) {
     console.error("Error generating handover summary:", error);
-    return "Error generating handover summary. Please check API key configuration.";
+    return "Handover summary generation failed. Please try again or draft manually.";
   }
 };
 
 export const getSmartTaskSuggestion = async (weather: string, timeOfDay: string): Promise<string> => {
     try {
-        const ai = getAiClient();
         const prompt = `
             Given the current weather is "${weather}" and it is "${timeOfDay}" at a luxury Maldives resort.
             Suggest one specific, actionable task for a Front Desk agent to improve guest experience right now.
@@ -69,6 +63,7 @@ export const getSmartTaskSuggestion = async (weather: string, timeOfDay: string)
         });
         return response.text || "Check lobby ambiance.";
     } catch (e) {
+        console.warn("Suggestion error:", e);
         return "Ensure cold towels are ready.";
     }
 }

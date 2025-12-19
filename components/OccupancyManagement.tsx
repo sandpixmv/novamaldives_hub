@@ -247,7 +247,8 @@ export const OccupancyManagement: React.FC<OccupancyManagementProps> = ({ occupa
                       <Info size={14} /> Average: {averageOccupancy}%
                   </div>
               </div>
-              <div className="flex-1 w-full min-h-0">
+              {/* Wrapper Div - ensuring measurement is done on a clean relative container without flex constraints */}
+              <div className="flex-1 w-full relative min-h-0 overflow-hidden">
                 <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                     <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <defs>
