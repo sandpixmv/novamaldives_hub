@@ -47,7 +47,7 @@ export const App: React.FC = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [users, setUsers] = useState<User[]>(INITIAL_USERS);
     const [appConfig, setAppConfig] = useState<AppConfig>({
-        appName: 'Nova Maldives | Front Office',
+        appName: 'The HUB | Nova Maldives',
         logoUrl: '',
         supportMessage: 'Contact IT for support.'
     });
@@ -120,7 +120,7 @@ export const App: React.FC = () => {
 
             const { data: settingsData } = await supabase.from('settings').select('*').eq('id', 'global').maybeSingle();
             if (settingsData) setAppConfig({
-                appName: settingsData.app_name || 'Nova Maldives | Front Office',
+                appName: settingsData.app_name || 'The HUB | Nova Maldives',
                 logoUrl: settingsData.logo_url || '',
                 supportMessage: settingsData.support_message || ''
             });

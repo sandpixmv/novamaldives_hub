@@ -124,7 +124,7 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin, appConfig }) => {
                 </button>
             </form>
             
-            <p className="text-center text-xs text-gray-400 mt-8">© 2024 Nova Maldives. Staff Portal.</p>
+            <p className="text-center text-xs text-gray-400 mt-8">© {new Date().getFullYear()} Nova Maldives. Soulmate Portal.</p>
         </div>
       </div>
     </div>
