@@ -12,37 +12,26 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, userRole, appConfig, isOpen, onClose }) => {
-  let navItems = [];
+  // Define the base navigation items available to ALL users
+  const navItems = [
+    { id: 'dashboard', label: 'My Dashboard', icon: <LayoutDashboard size={20} /> },
+    { id: 'checklist', label: 'Shift Check List', icon: <CheckSquare size={20} /> },
+    { id: 'guest-requests', label: 'Guest Requests', icon: <BellRing size={20} /> },
+    { id: 'checklist-history', label: 'Checklist History', icon: <ClipboardList size={20} /> },
+  ];
 
-  if (userRole === 'Management') {
-      navItems = [
-          { id: 'guest-requests', label: 'Guest Requests', icon: <BellRing size={20} /> }
-      ];
-  } else {
-      navItems = [
-        { id: 'dashboard', label: 'My Dashboard', icon: <LayoutDashboard size={20} /> },
-        { id: 'checklist', label: 'Shift Check List', icon: <CheckSquare size={20} /> },
-        { id: 'guest-requests', label: 'Guest Requests', icon: <BellRing size={20} /> },
-      ];
-      
-      const isManager = userRole === 'Front Office Manager' || userRole === 'Asst. FOM';
+  // Only the Front Office Manager (FOM) sees the administrative and management modules
+  const isFOM = userRole === 'Front Office Manager';
 
-      if (isManager) {
-          navItems.push({ id: 'shift-management', label: 'Shift Management', icon: <Briefcase size={20} /> });
-          navItems.push({ id: 'occupancy', label: 'Occupancy Planner', icon: <TrendingUp size={20} /> });
-          navItems.push({ id: 'checklist-management', label: 'Checklist Manager', icon: <ListChecks size={20} /> });
-          navItems.push({ id: 'admin', label: 'Admin Overview', icon: <BarChart3 size={20} /> });
-      }
-
-      navItems.push({ id: 'checklist-history', label: 'Checklist History', icon: <ClipboardList size={20} /> });
-
-      if (userRole === 'Front Office Manager') {
-          navItems.push({ id: 'users', label: 'Team Management', icon: <Users size={20} /> });
-      }
-
-      if (isManager) {
-          navItems.push({ id: 'settings', label: 'Settings', icon: <Settings size={20} /> });
-      }
+  if (isFOM) {
+    navItems.push(
+      { id: 'shift-management', label: 'Shift Management', icon: <Briefcase size={20} /> },
+      { id: 'occupancy', label: 'Occupancy Planner', icon: <TrendingUp size={20} /> },
+      { id: 'checklist-management', label: 'Checklist Manager', icon: <ListChecks size={20} /> },
+      { id: 'admin', label: 'Admin Overview', icon: <BarChart3 size={20} /> },
+      { id: 'users', label: 'Team Management', icon: <Users size={20} /> },
+      { id: 'settings', label: 'Settings', icon: <Settings size={20} /> }
+    );
   }
 
   return (
