@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { GuestRequest, RequestStatus, RequestPriority, User as AppUser } from '../types';
-import { Search, Plus, Clock, CheckCircle2, AlertTriangle, User, BedDouble, Wrench, Utensils, Car, Sparkles, X, Calendar, FileDown, MessageSquare, RotateCcw } from 'lucide-react';
+import { Search, Plus, Clock, CheckCircle2, AlertTriangle, User, BedDouble, Wrench, Utensils, Car, Sparkles, X, Calendar, FileDown, MessageSquare, RotateCcw, Droplets, Coffee, Scissors, Info } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -12,7 +12,16 @@ interface GuestRequestsProps {
   currentUser: AppUser;
 }
 
-const CATEGORIES = ['Housekeeping', 'Maintenance', 'Amenities', 'Food & Beverage', 'Transportation', 'Other'];
+const CATEGORIES = [
+  'Housekeeping', 
+  'Engineering', 
+  'Aquaholics', 
+  'F&B Service', 
+  'F&B Production', 
+  'Eskape Spa', 
+  'Front Office', 
+  'Others'
+];
 
 // Helper to get local date string in YYYY-MM-DD format
 const getLocalToday = () => {
@@ -64,11 +73,13 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
   const getCategoryIcon = (cat: string) => {
       switch(cat) {
           case 'Housekeeping': return <BedDouble size={16} />;
-          case 'Maintenance': return <Wrench size={16} />;
-          case 'Food & Beverage': return <Utensils size={16} />;
-          case 'Transportation': return <Car size={16} />;
-          case 'Amenities': return <Sparkles size={16} />;
-          default: return <Clock size={16} />;
+          case 'Engineering': return <Wrench size={16} />;
+          case 'Aquaholics': return <Droplets size={16} />;
+          case 'F&B Service': return <Utensils size={16} />;
+          case 'F&B Production': return <Coffee size={16} />;
+          case 'Eskape Spa': return <Scissors size={16} />;
+          case 'Front Office': return <User size={16} />;
+          default: return <Info size={16} />;
       }
   };
 
