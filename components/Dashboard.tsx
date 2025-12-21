@@ -17,6 +17,20 @@ interface DashboardProps {
   onOpenView?: (view: string) => void;
 }
 
+// Helper to format date to dd-mmm-yyyy
+const formatToResortDate = (dateInput: Date | string) => {
+  if (!dateInput) return '';
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return dateInput.toString();
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  
+  return `${day}-${month}-${year}`;
+};
+
 export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklist, occupancyData, availableShifts, guestRequests, onShiftTypeChange, onOpenView }) => {
   const [suggestion, setSuggestion] = useState<string>("Loading smart suggestion...");
   
@@ -122,7 +136,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
 
                       <p className="text-sm md:text-gray-500 mt-2 flex items-center gap-2 flex-wrap">
                           <CalendarCheck size={16} className="flex-shrink-0" />
-                          <span className="whitespace-nowrap">{currentShift.date}</span>
+                          <span className="whitespace-nowrap">{formatToResortDate(currentShift.date)}</span>
                           <span className="text-gray-300 hidden sm:inline">|</span>
                           <span className="text-nova-teal font-medium truncate">{currentShift.agentName}</span>
                       </p>
@@ -135,7 +149,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
                       </div>
                       <button 
                         onClick={openChecklist}
-                        className="bg-nova-teal text-white px-4 md:px-8 py-2 md:py-3 rounded-xl font-bold text-sm md:text-lg shadow-lg shadow-teal-200 hover:bg-teal-700 transition-all flex items-center gap-2 group/btn"
+                        className="bg-nova-teal text-white px-4 md:px-8 py-2 md:py-3 rounded-xl font-bold shadow-lg shadow-teal-200 hover:bg-teal-700 transition-all flex items-center gap-2 group/btn"
                       >
                         <span className="hidden sm:inline">{progress > 0 ? "Continue" : "Start"} Checklist</span>
                         <span className="sm:hidden">Checklist</span>

@@ -16,6 +16,20 @@ interface ChecklistProps {
   onReopenShift: () => void;
 }
 
+// Helper to format date to dd-mmm-yyyy
+const formatToResortDate = (dateInput: Date | string) => {
+  if (!dateInput) return '';
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return dateInput.toString();
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  
+  return `${day}-${month}-${year}`;
+};
+
 export const Checklist: React.FC<ChecklistProps> = ({ 
   shift, 
   availableShiftTypes, 
@@ -112,7 +126,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
                         <ChevronDown size={14} />
                     </div>
                   </div>
-                  <span className="text-xs text-gray-500 font-medium">Op Date: {shift.date}</span>
+                  <span className="text-xs text-gray-500 font-medium">Op Date: {formatToResortDate(shift.date)}</span>
                 </div>
             </div>
             <div className="flex items-center gap-3">

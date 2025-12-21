@@ -23,6 +23,20 @@ interface ChecklistHistoryProps {
   appConfig: AppConfig;
 }
 
+// Helper to format date to dd-mmm-yyyy
+const formatToResortDate = (dateInput: Date | string) => {
+  if (!dateInput) return '';
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return dateInput.toString();
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  
+  return `${day}-${month}-${year}`;
+};
+
 export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, onReopenShift, appConfig }) => {
   const [history, setHistory] = useState<CompletedShiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,11 +133,15 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
     doc.setFontSize(9);
     doc.setTextColor(100);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 40);
+
+    const currentTime = new Date();
+    const formattedGenDate = `${formatToResortDate(currentTime)}, ${currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+    
+    doc.text(`Generated: ${formattedGenDate}`, 14, 40);
     doc.text(`Records: ${filteredHistory.length}`, 14, 45);
 
     const tableBody = filteredHistory.map(h => [
-        h.date || '',
+        formatToResortDate(h.date) || '',
         (h.shift_type || '').split(' ')[0] || 'Unknown',
         h.agent_name || 'System',
         h.status?.toUpperCase() || 'SUBMITTED',
@@ -184,9 +202,15 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100);
-    doc.text(`Operational Date: ${record.date || ''}`, 14, 50);
+    
+    const operationalDateFormatted = formatToResortDate(record.date);
+    const submissionFormatted = record.submitted_at 
+        ? `${formatToResortDate(record.submitted_at)}, ${new Date(record.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}`
+        : 'N/A';
+
+    doc.text(`Operational Date: ${operationalDateFormatted}`, 14, 50);
     doc.text(`Agent In Charge: ${record.agent_name || ''}`, 14, 55);
-    doc.text(`Submission: ${record.submitted_at ? new Date(record.submitted_at).toLocaleString() : 'N/A'}`, 14, 60);
+    doc.text(`Submission: ${submissionFormatted}`, 14, 60);
 
     // Summary Statistics
     const completed = tasks.filter(t => t.isCompleted).length;
@@ -272,7 +296,7 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
             <table className="w-full text-left">
                 <thead className="bg-gray-50 text-xs text-gray-500 uppercase sticky top-0 z-10">
                     <tr>
-                        <th className="px-6 py-4 font-medium text-center w-24">Date</th>
+                        <th className="px-6 py-4 font-medium text-center w-32">Date</th>
                         <th className="px-6 py-4 font-medium">Shift</th>
                         <th className="px-6 py-4 font-medium">Agent</th>
                         <th className="px-6 py-4 font-medium">Completion</th>
@@ -288,7 +312,7 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
                         
                         return (
                             <tr key={record.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="px-6 py-4 text-gray-600 font-bold text-center">{record.date || ''}</td>
+                                <td className="px-6 py-4 text-gray-600 font-bold text-center">{formatToResortDate(record.date)}</td>
                                 <td className="px-6 py-4">
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-teal-50 text-nova-teal border border-teal-100">
                                         <Clock size={12} /> {(record.shift_type || '').split(' ')[0] || 'Unknown'}
@@ -349,7 +373,7 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
                           </div>
                           <div>
                               <h3 className="text-xl font-bold text-gray-800">{selectedRecord.shift_type || 'Unknown'} Shift Record</h3>
-                              <p className="text-sm text-gray-500">{selectedRecord.date || ''}</p>
+                              <p className="text-sm text-gray-500">{formatToResortDate(selectedRecord.date)}</p>
                           </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -411,7 +435,9 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
                                       <div className="flex items-center justify-between">
                                           <span className="text-[10px] text-gray-400 font-bold uppercase">Submission Time</span>
                                           <span className="text-xs text-gray-700 font-medium">
-                                              {selectedRecord.submitted_at ? new Date(selectedRecord.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                                              {selectedRecord.submitted_at 
+                                                ? `${formatToResortDate(selectedRecord.submitted_at)}, ${new Date(selectedRecord.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}` 
+                                                : '-'}
                                           </span>
                                       </div>
                                   </div>
