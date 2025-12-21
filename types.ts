@@ -1,3 +1,4 @@
+
 export type ShiftType = string;
 
 export type TaskCategory = string;
@@ -46,6 +47,7 @@ export interface User {
   initials: string;
   color: string;
   password?: string;
+  isActive?: boolean; // New field to allow disabling users
 }
 
 export interface ShiftAssignment {

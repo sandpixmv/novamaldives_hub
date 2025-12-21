@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { Plus, Trash2, Search, Shield, User as UserIcon, Edit2, Lock, Briefcase } from 'lucide-react';
+import { Plus, Trash2, Search, Shield, User as UserIcon, Edit2, Lock, Briefcase, UserX, UserCheck, ToggleLeft, ToggleRight } from 'lucide-react';
 
 interface UserManagementProps {
   users: User[];
@@ -19,6 +19,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
   const [newUsername, setNewUsername] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('GSA');
   const [newPassword, setNewPassword] = useState('');
+  const [isActive, setIsActive] = useState(true);
 
   const handleEditClick = (user: User) => {
       setEditingUser(user);
@@ -26,6 +27,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
       setNewUsername(user.username);
       setNewRole(user.role);
       setNewPassword(user.password || '');
+      setIsActive(user.isActive !== false);
       setIsAdding(true);
   };
 
@@ -35,6 +37,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
       setNewUsername('');
       setNewRole('GSA');
       setNewPassword('');
+      setIsActive(true);
       setIsAdding(true);
   };
 
@@ -47,7 +50,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
     e.preventDefault();
     if (!newName || !newUsername || !newPassword) return;
 
-    // Generate initials (re-generate even if editing to keep it synced with name)
     const initials = newName
       .split(' ')
       .map(n => n[0])
@@ -56,18 +58,16 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
       .toUpperCase();
 
     if (editingUser) {
-        // Update existing user
         onEditUser({
             ...editingUser,
             name: newName,
             username: newUsername,
             role: newRole,
             password: newPassword,
-            initials: initials // Update initials in case name changed
+            initials: initials,
+            isActive: isActive
         });
     } else {
-        // Create new user
-        // Assign random color style
         const colors = [
         'bg-blue-100 text-blue-600',
         'bg-green-100 text-green-600',
@@ -84,7 +84,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
             role: newRole,
             initials,
             color,
-            password: newPassword
+            password: newPassword,
+            isActive: isActive
         });
     }
 
@@ -93,7 +94,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
 
   const filteredUsers = users.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.role.toLowerCase().includes(searchTerm.toLowerCase())
+    u.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -101,7 +103,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Team Management</h2>
-          <p className="text-gray-500">Manage user access, passwords, and roles.</p>
+          <p className="text-gray-500">Manage user access, passwords, and account status.</p>
         </div>
         <button 
           onClick={handleAddNewClick}
@@ -121,55 +123,77 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
             {editingUser && <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded">Editing Mode</span>}
           </div>
           
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Full Name</label>
-              <input
-                type="text"
-                required
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                className={`w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal ${editingUser ? 'text-blue-600 font-medium' : 'text-gray-700'}`}
-                placeholder="e.g. John Doe"
-              />
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className={`w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal ${editingUser ? 'text-blue-600 font-medium' : 'text-gray-700'}`}
+                  placeholder="e.g. John Doe"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Username</label>
+                <input
+                  type="text"
+                  required
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  className={`w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal ${editingUser ? 'text-blue-600 font-medium' : 'text-gray-700'}`}
+                  placeholder="e.g. John.D"
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Username</label>
-              <input
-                type="text"
-                required
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
-                className={`w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal ${editingUser ? 'text-blue-600 font-medium' : 'text-gray-700'}`}
-                placeholder="e.g. John.D"
-              />
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Role</label>
+                <select
+                  value={newRole}
+                  onChange={(e) => setNewRole(e.target.value as UserRole)}
+                  className={`w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal bg-white ${editingUser ? 'text-blue-600 font-medium' : 'text-gray-700'}`}
+                >
+                  <option value="GSA">GSA</option>
+                  <option value="Senior GSA">Senior GSA</option>
+                  <option value="Asst. FOM">Asst. FOM</option>
+                  <option value="Front Office Manager">Front Office Manager</option>
+                  <option value="Management">Management</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-1">
+                    Password <Lock size={10} />
+                </label>
+                <input
+                  type="text" 
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className={`w-full p-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal font-mono text-sm ${editingUser ? 'text-blue-600 font-medium' : 'text-gray-700'}`}
+                  placeholder="Set user password"
+                />
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Role</label>
-              <select
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value as UserRole)}
-                className={`w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal bg-white ${editingUser ? 'text-blue-600 font-medium' : 'text-gray-700'}`}
-              >
-                <option value="GSA">GSA</option>
-                <option value="Senior GSA">Senior GSA</option>
-                <option value="Asst. FOM">Asst. FOM</option>
-                <option value="Front Office Manager">Front Office Manager</option>
-                <option value="Management">Management</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-1">
-                  Password <Lock size={10} />
-              </label>
-              <input
-                type="text" 
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className={`w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:border-nova-teal font-mono text-sm ${editingUser ? 'text-blue-600 font-medium' : 'text-gray-700'}`}
-                placeholder="Set user password"
-              />
+
+            <div className="md:col-span-2 flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100">
+               <div>
+                  <h4 className="text-sm font-bold text-gray-800">Account Status</h4>
+                  <p className="text-xs text-gray-500">Disabled users will not be able to log into the portal.</p>
+               </div>
+               <button 
+                type="button"
+                onClick={() => setIsActive(!isActive)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  isActive ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-red-50 text-red-600 hover:bg-red-100'
+                }`}
+               >
+                 {isActive ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
+                 {isActive ? 'Active' : 'Disabled'}
+               </button>
             </div>
 
             <div className="md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
@@ -210,22 +234,27 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
                 <th className="px-6 py-3 font-medium">User</th>
                 <th className="px-6 py-3 font-medium">Role</th>
                 <th className="px-6 py-3 font-medium">Username</th>
+                <th className="px-6 py-3 font-medium">Status</th>
                 <th className="px-6 py-3 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 group transition-colors">
+                <tr key={user.id} className={`group transition-colors ${user.isActive === false ? 'bg-gray-50/50 grayscale-[0.3]' : 'hover:bg-gray-50'}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${user.color}`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${user.isActive === false ? 'bg-gray-200 text-gray-400' : user.color}`}>
                         {user.initials}
                       </div>
-                      <span className="font-medium text-gray-800">{user.name}</span>
+                      <div className="flex flex-col">
+                        <span className={`font-medium ${user.isActive === false ? 'text-gray-400' : 'text-gray-800'}`}>{user.name}</span>
+                        {user.isActive === false && <span className="text-[10px] text-red-500 font-bold uppercase">Disabled Account</span>}
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                      user.isActive === false ? 'bg-gray-100 text-gray-400 border-gray-200' :
                       user.role === 'Front Office Manager' 
                         ? 'bg-purple-50 text-purple-700 border-purple-100'
                         : user.role === 'Asst. FOM' 
@@ -239,8 +268,19 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
                       {user.role}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-gray-500 text-sm font-mono">
+                  <td className={`px-6 py-4 text-sm font-mono ${user.isActive === false ? 'text-gray-300' : 'text-gray-500'}`}>
                     @{user.username}
+                  </td>
+                  <td className="px-6 py-4">
+                    {user.isActive === false ? (
+                      <span className="flex items-center gap-1 text-red-400 text-xs font-bold">
+                        <UserX size={14} /> Inactive
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-green-500 text-xs font-bold">
+                        <UserCheck size={14} /> Active
+                      </span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -265,7 +305,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
               ))}
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                     No users found matching your search.
                   </td>
                 </tr>

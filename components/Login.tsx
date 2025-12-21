@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LifeBuoy, Lock, User as UserIcon, ArrowRight, Loader2 } from 'lucide-react';
+import { LifeBuoy, Lock, User as UserIcon, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { User, AppConfig } from '../types';
 
 interface LoginProps {
@@ -29,12 +29,15 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin, appConfig }) => {
     setTimeout(() => {
       setIsLoading(false);
       
-      // Look up user in the provided list (which comes from Supabase)
       const foundUser = users.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
       
       if (foundUser) {
-        // In a real app, this would use bcrypt compare. 
-        // Here we compare plain text as per the prototype's current data structure.
+        // Check if account is active
+        if (foundUser.isActive === false) {
+          setError('This account has been disabled. Please contact the Front Office Manager.');
+          return;
+        }
+
         if (foundUser.password === password) {
              onLogin(foundUser);
         } else {
@@ -61,15 +64,15 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin, appConfig }) => {
                          </div>
                      )}
                 </div>
-                <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Welcome to {appConfig.appName}</h1>
+                <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Welcome to The Hub | Nova Maldives</h1>
                 <p className="text-sm text-gray-500 mt-1">Please enter your credentials to sign in.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (
-                <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg flex items-center gap-2 animate-pulse">
-                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                    {error}
+                <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg flex items-start gap-2 animate-shake">
+                    <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                    <span>{error}</span>
                 </div>
                 )}
 

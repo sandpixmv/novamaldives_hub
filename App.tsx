@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
-import { AdminDashboard } from './components/AdminDashboard';
 import { Checklist } from './components/Checklist';
 import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
@@ -38,7 +37,7 @@ const SHIFT_DEFINITIONS = [
 ];
 
 const INITIAL_USERS: User[] = [
-  { id: 'u1', username: 'Ahmed.Ihsaan', name: 'Ahmed Ihsaan', role: 'Front Office Manager', initials: 'AI', color: 'bg-purple-100 text-purple-600', password: 'password123' },
+  { id: 'u1', username: 'Ahmed.Ihsaan', name: 'Ahmed Ihsaan', role: 'Front Office Manager', initials: 'AI', color: 'bg-purple-100 text-purple-600', password: 'password123', isActive: true },
 ];
 
 export const App: React.FC = () => {
@@ -78,7 +77,18 @@ export const App: React.FC = () => {
             const opDate = getOperationalDate();
             
             const { data: userData } = await supabase.from('users').select('*');
-            if (userData?.length) setUsers(userData);
+            if (userData?.length) {
+              setUsers(userData.map(u => ({
+                id: u.id,
+                username: u.username,
+                name: u.name,
+                role: u.role,
+                initials: u.initials,
+                color: u.color,
+                password: u.password,
+                isActive: u.is_active !== undefined ? u.is_active : true
+              })));
+            }
 
             const { data: tmplData } = await supabase.from('task_templates').select('*');
             if (tmplData) {
@@ -344,9 +354,8 @@ export const App: React.FC = () => {
         }));
     };
 
-    if (!currentUser) return <Login users={users} onLogin={handleLogin} appConfig={appConfig} />;
-
     return (
+        currentUser ? (
         <div className="flex bg-gray-50 min-h-screen font-sans text-gray-900 relative overflow-x-hidden">
              {isSidebarOpen && <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
              <Sidebar currentView={currentView} setCurrentView={(view) => { setCurrentView(view); setIsSidebarOpen(false); }} userRole={currentUser.role} appConfig={appConfig} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
@@ -371,11 +380,29 @@ export const App: React.FC = () => {
                             case 'checklist': return <Checklist shift={currentShift} availableShiftTypes={shiftTypes} submittedShiftsToday={submittedShiftsToday} userRole={currentUser.role} onToggleTask={toggleTask} onUpdateNotes={(n) => setCurrentShift(prev => ({...prev, notes: n}))} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onSubmitShift={() => saveShift(true)} onSaveDraft={() => saveShift(false)} onReopenShift={() => handleReopenShift(currentShift.date, currentShift.type)} />;
                             case 'checklist-history': return <ChecklistHistory userRole={currentUser.role} onReopenShift={handleReopenShift} appConfig={appConfig} />;
                             case 'guest-requests': return <GuestRequests requests={guestRequests} onRequestAdd={handleAddGuestRequest} onRequestUpdate={handleUpdateGuestRequest} logoUrl={appConfig.logoUrl} currentUser={currentUser} />;
-                            case 'users': return <UserManagement users={users} onAddUser={async (u) => { const {data} = await supabase.from('users').insert([u]).select(); if(data) setUsers(prev => [...prev, data[0] as User]); }} onEditUser={async (u) => { await supabase.from('users').update(u).eq('id', u.id); setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr)); }} onDeleteUser={async (id) => { await supabase.from('users').delete().eq('id', id); setUsers(prev => prev.filter(u => u.id !== id)); }} />;
+                            case 'users': return <UserManagement users={users} onAddUser={async (u) => { 
+                                const dbUser = { ...u, is_active: u.isActive };
+                                const {data} = await supabase.from('users').insert([dbUser]).select(); 
+                                if(data) setUsers(prev => [...prev, { ...data[0], isActive: data[0].is_active } as User]); 
+                            }} onEditUser={async (u) => { 
+                                const dbUser = { 
+                                  username: u.username, 
+                                  name: u.name, 
+                                  role: u.role, 
+                                  initials: u.initials, 
+                                  color: u.color, 
+                                  password: u.password, 
+                                  is_active: u.isActive 
+                                };
+                                await supabase.from('users').update(dbUser).eq('id', u.id); 
+                                setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr)); 
+                            }} onDeleteUser={async (id) => { 
+                                await supabase.from('users').delete().eq('id', id); 
+                                setUsers(prev => prev.filter(u => u.id !== id)); 
+                            }} />;
                             case 'shift-management': return <ShiftManagement users={users} currentShift={currentShift} onAssignShift={()=>{}} initialAssignments={[]} onSaveRoster={()=>{}} availableShifts={shiftTypes} />;
                             case 'occupancy': return <OccupancyManagement occupancyData={occupancyData} onUpdateOccupancy={async (d) => { await supabase.from('occupancy').upsert(d); setOccupancyData(d); }} />;
                             case 'checklist-management': return <ChecklistManagement templates={templates} availableShifts={shiftTypes} availableCategories={categories} onAddTemplate={async (t) => { const {data} = await supabase.from('task_templates').insert([{label: t.label, category: t.category, shift_type: t.shiftType}]).select(); if(data) setTemplates(prev => [...prev, {id: data[0].id, label: data[0].label, category: data[0].category, shiftType: data[0].shift_type}]); }} onDeleteTemplate={async (id) => { await supabase.from('task_templates').delete().eq('id', id); setTemplates(prev => prev.filter(t => t.id !== id)); }} onAddShift={()=>{}} onDeleteShift={()=>{}} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />;
-                            case 'admin': return <AdminDashboard />;
                             case 'settings': return <Settings userRole={currentUser.role} config={appConfig} onSave={async (c) => { await supabase.from('settings').upsert({id: 'global', app_name: c.appName, logo_url: c.logoUrl, support_message: c.supportMessage}); setAppConfig(c); }} />;
                             default: return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onOpenView={(view) => setCurrentView(view)} />;
                         }
@@ -383,5 +410,8 @@ export const App: React.FC = () => {
                  </div>
              </div>
         </div>
+        ) : (
+          <Login users={users} onLogin={handleLogin} appConfig={appConfig} />
+        )
     );
 };
