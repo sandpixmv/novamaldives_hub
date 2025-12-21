@@ -32,6 +32,20 @@ const getLocalToday = () => {
   return `${year}-${month}-${day}`;
 };
 
+// Helper to format date to dd-mmm-yyyy
+const formatToResortDate = (dateInput: Date | string) => {
+  if (!dateInput) return '';
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return dateInput.toString();
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  
+  return `${day}-${month}-${year}`;
+};
+
 export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onRequestAdd, onRequestUpdate, logoUrl, currentUser }) => {
   const [filterStatus, setFilterStatus] = useState<RequestStatus | 'All'>('All');
   const [selectedDate, setSelectedDate] = useState<string>(getLocalToday());
@@ -168,8 +182,15 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Date: ${selectedDate || 'All Dates'}`, 14, 42);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 47);
+    
+    // Use the dd-mmm-yyyy formatter here
+    const formattedReportDate = selectedDate ? formatToResortDate(selectedDate) : 'All Dates';
+    const currentTime = new Date();
+    const formattedTime = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    const formattedGenDate = `${formatToResortDate(currentTime)}, ${formattedTime}`;
+
+    doc.text(`Date: ${formattedReportDate}`, 14, 42);
+    doc.text(`Generated: ${formattedGenDate}`, 14, 47);
 
     // Summary Box
     doc.setDrawColor(200);
@@ -187,10 +208,10 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
       req.status,
       req.description,
       req.loggedBy,
-      new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+      new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}),
       req.remarks || '-',
       req.updatedBy || '-',
-      req.updatedAt ? new Date(req.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-'
+      req.updatedAt ? new Date(req.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true}) : '-'
     ]);
 
     autoTable(doc, {
@@ -376,9 +397,9 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                                 )}
 
                                 <div className="flex items-center gap-3 text-[10px] md:text-xs text-gray-400 mt-1 flex-wrap">
-                                    <span>Logged: {new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} by <span className="text-gray-600 font-medium">{req.loggedBy}</span></span>
+                                    <span>Logged: {new Date(req.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})} by <span className="text-gray-600 font-medium">{req.loggedBy}</span></span>
                                     {req.updatedBy && (
-                                        <span className="text-teal-600 font-medium">Updated: {new Date(req.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} by {req.updatedBy}</span>
+                                        <span className="text-teal-600 font-medium">Updated: {new Date(req.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: true})} by {req.updatedBy}</span>
                                     )}
                                 </div>
                             </div>
