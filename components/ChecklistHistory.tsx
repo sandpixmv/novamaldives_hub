@@ -211,11 +211,12 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
     doc.text(`Operational Date: ${operationalDateFormatted}`, 14, 50);
     doc.text(`Agent In Charge: ${record.agent_name || ''}`, 14, 55);
     doc.text(`Submission: ${submissionFormatted}`, 14, 60);
+    doc.text(`Report Status: ${(record.status || 'submitted').toUpperCase()}`, 14, 65);
 
     // Summary Statistics
     const completed = tasks.filter(t => t.isCompleted).length;
     doc.setFillColor(240, 248, 248);
-    doc.roundedRect(140, 42, 56, 20, 3, 3, 'F');
+    doc.roundedRect(140, 42, 56, 25, 3, 3, 'F');
     doc.setTextColor(0, 139, 139);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
@@ -223,16 +224,18 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
     doc.setFontSize(7);
     doc.setTextColor(100);
     doc.text("Completion Rate", 148, 57);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Status: ${(record.status || 'submitted').toUpperCase()}`, 148, 62);
 
     // Notes Section
     doc.setFontSize(10);
     doc.setTextColor(60, 60, 60);
     doc.setFont('helvetica', 'bold');
-    doc.text("Shift Notes & Observations:", 14, 75);
+    doc.text("Shift Notes & Observations:", 14, 78);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(80);
     const splitNotes = doc.splitTextToSize(record.notes || "No operational notes recorded for this shift.", 182);
-    doc.text(splitNotes, 14, 82);
+    doc.text(splitNotes, 14, 85);
 
     // Task Table - Category column removed
     const tableBody = tasks.map(t => [
@@ -241,7 +244,7 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
     ]);
 
     autoTable(doc, {
-        startY: 95 + (splitNotes.length * 5),
+        startY: 98 + (splitNotes.length * 5),
         head: [['Task Description', 'Status']],
         body: tableBody,
         headStyles: { 
@@ -265,7 +268,7 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
           <p className="text-gray-500">View and audit previously submitted GSA shift checklists.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-            <div className="relative w-full md:w-auto">
+            <div className="relative w-full md:auto">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input 
                     type="text" 
