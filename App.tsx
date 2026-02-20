@@ -4,14 +4,14 @@ import { Dashboard } from './components/Dashboard';
 import { Checklist } from './components/Checklist';
 import { Login } from './components/Login';
 import { UserManagement } from './components/UserManagement';
-import { ShiftManagement } from './components/ShiftManagement';
 import { ChecklistManagement } from './components/ChecklistManagement';
 import { OccupancyManagement } from './components/OccupancyManagement';
 import { Settings } from './components/Settings';
 import { ChecklistHistory } from './components/ChecklistHistory';
 import { GuestRequests } from './components/GuestRequests';
+import { Reports } from './components/Reports';
 import { ShiftData, ShiftType, TaskCategory, Task, User, ShiftAssignment, AppConfig, TaskTemplate, DailyOccupancy, GuestRequest } from './types';
-import { Menu, LogOut } from 'lucide-react';
+import { Menu, LogOut, Bell, AlertCircle, X } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 
 // --- Utils ---
@@ -57,6 +57,8 @@ export const App: React.FC = () => {
     const [guestRequests, setGuestRequests] = useState<GuestRequest[]>([]);
     const [submittedShiftsToday, setSubmittedShiftsToday] = useState<string[]>([]);
     const [categories, setCategories] = useState<TaskCategory[]>([]);
+    const [overdueRequests, setOverdueRequests] = useState<GuestRequest[]>([]);
+    const [notifiedRequestIds, setNotifiedRequestIds] = useState<Set<string>>(new Set());
 
     const [currentShift, setCurrentShift] = useState<ShiftData>({
         id: 's1',
@@ -142,6 +144,41 @@ export const App: React.FC = () => {
     useEffect(() => {
         fetchAllData();
     }, []);
+
+    // Check for overdue guest requests (not completed within 10 minutes)
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const checkOverdue = () => {
+            const now = new Date();
+            const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+
+            const newOverdue = guestRequests.filter(req => {
+                if (req.status === 'Completed' || req.status === 'Cancelled') return false;
+                const createdAt = new Date(req.createdAt);
+                return createdAt < tenMinutesAgo && !notifiedRequestIds.has(req.id);
+            });
+
+            if (newOverdue.length > 0) {
+                setOverdueRequests(prev => {
+                    // Only add if not already in overdue list
+                    const existingIds = new Set(prev.map(r => r.id));
+                    const uniqueNew = newOverdue.filter(r => !existingIds.has(r.id));
+                    return [...prev, ...uniqueNew];
+                });
+            }
+        };
+
+        const interval = setInterval(checkOverdue, 30000); // Check every 30 seconds
+        checkOverdue(); // Initial check
+
+        return () => clearInterval(interval);
+    }, [guestRequests, notifiedRequestIds, currentUser]);
+
+    const dismissNotification = (id: string) => {
+        setOverdueRequests(prev => prev.filter(r => r.id !== id));
+        setNotifiedRequestIds(prev => new Set(prev).add(id));
+    };
 
     const initTasksForShift = (type: string, user: User, latestTemplates?: TaskTemplate[]): ShiftData => {
         const opDate = getOperationalDate();
@@ -373,13 +410,60 @@ export const App: React.FC = () => {
                          </div>
                      </div>
                  </div>
-                 <div className="p-4 md:p-6"> 
+                 <div className="p-4 md:p-6 relative"> 
+                    {/* Overdue Notifications Popup */}
+                    {overdueRequests.length > 0 && (
+                        <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 max-w-sm w-full animate-slide-up">
+                            {overdueRequests.map(req => (
+                                <div key={req.id} className="bg-white border-l-4 border-red-500 rounded-lg shadow-2xl p-4 flex items-start gap-3 relative overflow-hidden group border border-gray-100">
+                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => dismissNotification(req.id)} className="text-gray-400 hover:text-gray-600 p-1">
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+                                    <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500 flex-shrink-0 animate-pulse">
+                                        <Bell size={20} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="font-bold text-red-600 text-[10px] flex items-center gap-1 uppercase tracking-wider">
+                                                <AlertCircle size={12} /> Overdue
+                                            </span>
+                                            <span className="text-[10px] text-gray-400 font-medium">
+                                                {Math.floor((new Date().getTime() - new Date(req.createdAt).getTime()) / 60000)}m ago
+                                            </span>
+                                        </div>
+                                        <p className="text-sm font-bold text-gray-800 truncate">Room {req.roomNumber}</p>
+                                        <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">{req.description}</p>
+                                        <div className="mt-3 flex gap-2">
+                                            <button 
+                                                onClick={() => {
+                                                    setCurrentView('guest-requests');
+                                                    dismissNotification(req.id);
+                                                }}
+                                                className="text-[10px] font-bold uppercase tracking-wider bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 transition-colors shadow-sm"
+                                            >
+                                                View
+                                            </button>
+                                            <button 
+                                                onClick={() => dismissNotification(req.id)}
+                                                className="text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-gray-600 px-2 py-1.5"
+                                            >
+                                                Dismiss
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     {(() => {
                         switch(currentView) {
                             case 'dashboard': return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onOpenView={(view) => setCurrentView(view)} />;
                             case 'checklist': return <Checklist shift={currentShift} availableShiftTypes={shiftTypes} submittedShiftsToday={submittedShiftsToday} userRole={currentUser.role} onToggleTask={toggleTask} onUpdateNotes={(n) => setCurrentShift(prev => ({...prev, notes: n}))} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onSubmitShift={() => saveShift(true)} onSaveDraft={() => saveShift(false)} onReopenShift={() => handleReopenShift(currentShift.date, currentShift.type)} />;
                             case 'checklist-history': return <ChecklistHistory userRole={currentUser.role} onReopenShift={handleReopenShift} appConfig={appConfig} />;
                             case 'guest-requests': return <GuestRequests requests={guestRequests} onRequestAdd={handleAddGuestRequest} onRequestUpdate={handleUpdateGuestRequest} logoUrl={appConfig.logoUrl} currentUser={currentUser} />;
+                            case 'reports': return <Reports appConfig={appConfig} />;
                             case 'users': return <UserManagement users={users} onAddUser={async (u) => { 
                                 const dbUser = { ...u, is_active: u.isActive };
                                 const {data} = await supabase.from('users').insert([dbUser]).select(); 
@@ -400,7 +484,6 @@ export const App: React.FC = () => {
                                 await supabase.from('users').delete().eq('id', id); 
                                 setUsers(prev => prev.filter(u => u.id !== id)); 
                             }} />;
-                            case 'shift-management': return <ShiftManagement users={users} currentShift={currentShift} onAssignShift={()=>{}} initialAssignments={[]} onSaveRoster={()=>{}} availableShifts={shiftTypes} />;
                             case 'occupancy': return <OccupancyManagement occupancyData={occupancyData} onUpdateOccupancy={async (d) => { await supabase.from('occupancy').upsert(d); setOccupancyData(d); }} />;
                             case 'checklist-management': return <ChecklistManagement templates={templates} availableShifts={shiftTypes} availableCategories={categories} onAddTemplate={async (t) => { const {data} = await supabase.from('task_templates').insert([{label: t.label, category: t.category, shift_type: t.shiftType}]).select(); if(data) setTemplates(prev => [...prev, {id: data[0].id, label: data[0].label, category: data[0].category, shiftType: data[0].shift_type}]); }} onDeleteTemplate={async (id) => { await supabase.from('task_templates').delete().eq('id', id); setTemplates(prev => prev.filter(t => t.id !== id)); }} onAddShift={()=>{}} onDeleteShift={()=>{}} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />;
                             case 'settings': return <Settings userRole={currentUser.role} config={appConfig} onSave={async (c) => { await supabase.from('settings').upsert({id: 'global', app_name: c.appName, logo_url: c.logoUrl, support_message: c.supportMessage}); setAppConfig(c); }} />;

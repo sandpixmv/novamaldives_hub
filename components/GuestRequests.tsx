@@ -69,7 +69,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
       // Ensure we have a date part to compare
       const reqDate = req.createdAt ? req.createdAt.split('T')[0] : '';
       const matchesDate = !selectedDate || reqDate === selectedDate;
-      const matchesStatus = filterStatus === 'All' || req.status === filterStatus;
+      const matchesStatus = filterStatus === 'All' ? req.status !== 'Cancelled' : req.status === filterStatus;
       const matchesSearch = 
         req.roomNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
         req.guestName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -419,22 +419,13 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                                             <Wrench size={18} />
                                         </button>
                                     )}
-                                    {req.status !== 'Completed' && req.status !== 'Cancelled' && (
+                                    {req.status !== 'Completed' && (
                                         <button 
                                             onClick={() => setUpdatingRequest({ id: req.id, nextStatus: 'Completed' })}
                                             className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors" 
                                             title="Complete"
                                         >
                                             <CheckCircle2 size={18} />
-                                        </button>
-                                    )}
-                                    {req.status !== 'Completed' && req.status !== 'Cancelled' && (
-                                        <button 
-                                            onClick={() => setUpdatingRequest({ id: req.id, nextStatus: 'Cancelled' })}
-                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors" 
-                                            title="Cancel"
-                                        >
-                                            <X size={18} />
                                         </button>
                                     )}
                                 </div>

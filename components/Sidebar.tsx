@@ -18,6 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, u
     { id: 'guest-requests', label: 'Guest Requests', icon: <BellRing size={20} /> },
     { id: 'checklist', label: 'Shift Check List', icon: <CheckSquare size={20} /> },
     { id: 'checklist-history', label: 'Checklist History', icon: <ClipboardList size={20} /> },
+    { id: 'reports', label: 'Reports', icon: <BarChart3 size={20} /> },
   ];
 
   // Only the Front Office Manager (FOM) sees the administrative and management modules
@@ -25,7 +26,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, u
 
   if (isFOM) {
     navItems.push(
-      { id: 'shift-management', label: 'Shift Management', icon: <Briefcase size={20} /> },
       { id: 'occupancy', label: 'Occupancy Planner', icon: <TrendingUp size={20} /> },
       { id: 'checklist-management', label: 'Checklist Manager', icon: <ListChecks size={20} /> },
       { id: 'users', label: 'Team Management', icon: <Users size={20} /> },
