@@ -55,8 +55,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const today = new Date().toISOString().split('T')[0];
   const todayRequests = guestRequests.filter(r => r.createdAt.startsWith(today) && r.status !== 'Cancelled');
   
-  const pendingRequests = todayRequests.filter(r => r.status === 'Pending');
-  const inProgressRequests = todayRequests.filter(r => r.status === 'In Progress');
+  const pendingRequests = todayRequests.filter(r => r.status === 'Pending' || r.status === 'In Progress');
   const completedRequests = todayRequests.filter(r => r.status === 'Completed');
   
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
@@ -144,7 +143,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
-          <p className="text-xs font-bold text-yellow-500 uppercase mb-1">Pending</p>
+          <p className="text-xs font-bold text-yellow-500 uppercase mb-1">Pending & In-Progress</p>
           <div className="flex items-end justify-between">
             <h3 className="text-3xl font-bold text-gray-800">{pendingRequests.length}</h3>
             <div className="p-2 bg-yellow-50 rounded-lg text-yellow-500">
@@ -182,7 +181,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div>
                 <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                   <BellRing size={20} className="text-nova-teal" /> 
-                  Pending Guest Requests
+                  Active Guest Requests
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">Real-time traffic monitoring</p>
               </div>
@@ -231,7 +230,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   onClick={() => onOpenView?.('guest-requests')}
                   className="w-full py-3 text-sm font-bold text-gray-400 hover:text-nova-teal transition-colors border-t border-gray-50"
                 >
-                  + {pendingRequests.length - 10} more pending requests. View all.
+                  + {pendingRequests.length - 10} more active requests. View all.
                 </button>
               )}
             </div>

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { GuestRequest, RequestStatus, RequestPriority, User as AppUser } from '../types';
-import { Search, Plus, Clock, CheckCircle2, AlertTriangle, User, BedDouble, Wrench, Utensils, Car, Sparkles, X, Calendar, FileDown, MessageSquare, RotateCcw, Droplets, Coffee, Scissors, Info } from 'lucide-react';
+import { Search, Plus, Clock, CheckCircle2, AlertTriangle, User, BedDouble, Wrench, Utensils, Car, Sparkles, X, Calendar, FileDown, MessageSquare, RotateCcw, Droplets, Coffee, Scissors, Info, Shield } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -20,6 +20,7 @@ const CATEGORIES = [
   'F&B Production', 
   'Eskape Spa', 
   'Front Office', 
+  'Security',
   'Others'
 ];
 
@@ -93,6 +94,7 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
           case 'F&B Production': return <Coffee size={16} />;
           case 'Eskape Spa': return <Scissors size={16} />;
           case 'Front Office': return <User size={16} />;
+          case 'Security': return <Shield size={16} />;
           default: return <Info size={16} />;
       }
   };
