@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LifeBuoy, Lock, User as UserIcon, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+import { LifeBuoy, Lock, User as UserIcon, ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { User, AppConfig } from '../types';
 
 interface LoginProps {
@@ -11,6 +11,7 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({ users, onLogin, appConfig }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -99,12 +100,19 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin, appConfig }) => {
                     <Lock size={18} />
                     </div>
                     <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-nova-teal/20 focus:border-nova-teal transition-all"
+                    className="block w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-nova-teal/20 focus:border-nova-teal transition-all"
                     placeholder="Enter your password"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-nova-teal transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                 </div>
                 </div>
 

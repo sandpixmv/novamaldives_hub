@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { User, UserRole } from '../types';
-import { Plus, Trash2, Search, Shield, User as UserIcon, Edit2, Lock, Briefcase, UserX, UserCheck, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Trash2, Search, Shield, User as UserIcon, Edit2, Lock, Briefcase, UserX, UserCheck, ToggleLeft, ToggleRight, Loader2, Check } from 'lucide-react';
 
 interface UserManagementProps {
   users: User[];
-  onAddUser: (user: Omit<User, 'id'>) => void;
-  onEditUser: (user: User) => void;
-  onDeleteUser: (id: string) => void;
+  onAddUser: (user: Omit<User, 'id'>) => Promise<void> | void;
+  onEditUser: (user: User) => Promise<void> | void;
+  onDeleteUser: (id: string) => Promise<void> | void;
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onEditUser, onDeleteUser }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   
   // User Form State
   const [newName, setNewName] = useState('');
@@ -46,50 +48,61 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
       setEditingUser(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName || !newUsername || !newPassword) return;
+    if (!newName || !newUsername || !newPassword || isSubmitting) return;
 
-    const initials = newName
-      .split(' ')
-      .map(n => n[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase();
+    setIsSubmitting(true);
+    try {
+      const initials = newName
+        .split(' ')
+        .map(n => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase();
 
-    if (editingUser) {
-        onEditUser({
-            ...editingUser,
-            name: newName,
-            username: newUsername,
-            role: newRole,
-            password: newPassword,
-            initials: initials,
-            isActive: isActive
-        });
-    } else {
-        const colors = [
-        'bg-blue-100 text-blue-600',
-        'bg-green-100 text-green-600',
-        'bg-yellow-100 text-yellow-600',
-        'bg-pink-100 text-pink-600',
-        'bg-indigo-100 text-indigo-600',
-        'bg-teal-100 text-teal-600'
-        ];
-        const color = colors[Math.floor(Math.random() * colors.length)];
+      if (editingUser) {
+          await onEditUser({
+              ...editingUser,
+              name: newName,
+              username: newUsername,
+              role: newRole,
+              password: newPassword,
+              initials: initials,
+              isActive: isActive
+          });
+      } else {
+          const colors = [
+          'bg-blue-100 text-blue-600',
+          'bg-green-100 text-green-600',
+          'bg-yellow-100 text-yellow-600',
+          'bg-pink-100 text-pink-600',
+          'bg-indigo-100 text-indigo-600',
+          'bg-teal-100 text-teal-600'
+          ];
+          const color = colors[Math.floor(Math.random() * colors.length)];
 
-        onAddUser({
-            name: newName,
-            username: newUsername,
-            role: newRole,
-            initials,
-            color,
-            password: newPassword,
-            isActive: isActive
-        });
+          await onAddUser({
+              name: newName,
+              username: newUsername,
+              role: newRole,
+              initials,
+              color,
+              password: newPassword,
+              isActive: isActive
+          });
+      }
+
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        handleCloseForm();
+      }, 1500);
+    } catch (error) {
+      console.error("Submit error:", error);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    handleCloseForm();
   };
 
   const filteredUsers = users.filter(u => 
@@ -206,9 +219,26 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser
               </button>
               <button 
                 type="submit"
-                className="px-6 py-2 bg-nova-teal text-white rounded-lg font-medium hover:bg-teal-700 shadow-lg shadow-teal-100"
+                disabled={isSubmitting || showSuccess}
+                className={`px-6 py-2 rounded-lg font-medium shadow-lg transition-all flex items-center gap-2 min-w-[140px] justify-center ${
+                  showSuccess 
+                    ? 'bg-green-500 text-white shadow-green-100' 
+                    : 'bg-nova-teal text-white hover:bg-teal-700 shadow-teal-100 disabled:opacity-70'
+                }`}
               >
-                {editingUser ? 'Save Changes' : 'Create User'}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Saving...
+                  </>
+                ) : showSuccess ? (
+                  <>
+                    <Check size={18} />
+                    Saved!
+                  </>
+                ) : (
+                  editingUser ? 'Save Changes' : 'Create User'
+                )}
               </button>
             </div>
           </form>

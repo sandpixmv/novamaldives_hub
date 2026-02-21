@@ -78,9 +78,11 @@ export const App: React.FC = () => {
         try {
             const opDate = getOperationalDate();
             
-            const { data: userData } = await supabase.from('users').select('*');
-            if (userData?.length) {
-              setUsers(userData.map(u => ({
+            const { data: userData, error: userError } = await supabase.from('users').select('*');
+            if (userError) console.error("Error fetching users:", userError);
+            
+            if (userData) {
+              const dbUsers: User[] = userData.map(u => ({
                 id: u.id,
                 username: u.username,
                 name: u.name,
@@ -89,7 +91,18 @@ export const App: React.FC = () => {
                 color: u.color,
                 password: u.password,
                 isActive: u.is_active !== undefined ? u.is_active : true
-              })));
+              }));
+
+              // Merge initial users with DB users, preferring DB users if usernames clash
+              setUsers(prev => {
+                const merged = [...dbUsers];
+                INITIAL_USERS.forEach(initUser => {
+                  if (!merged.find(u => u.username.toLowerCase() === initUser.username.toLowerCase())) {
+                    merged.push(initUser);
+                  }
+                });
+                return merged;
+              });
             }
 
             const { data: tmplData } = await supabase.from('task_templates').select('*');
@@ -465,24 +478,60 @@ export const App: React.FC = () => {
                             case 'guest-requests': return <GuestRequests requests={guestRequests} onRequestAdd={handleAddGuestRequest} onRequestUpdate={handleUpdateGuestRequest} logoUrl={appConfig.logoUrl} currentUser={currentUser} />;
                             case 'reports': return <Reports appConfig={appConfig} />;
                             case 'users': return <UserManagement users={users} onAddUser={async (u) => { 
-                                const dbUser = { ...u, is_active: u.isActive };
-                                const {data} = await supabase.from('users').insert([dbUser]).select(); 
-                                if(data) setUsers(prev => [...prev, { ...data[0], isActive: data[0].is_active } as User]); 
+                                try {
+                                    const dbUser = { 
+                                        username: u.username, 
+                                        name: u.name, 
+                                        role: u.role, 
+                                        initials: u.initials, 
+                                        color: u.color, 
+                                        password: u.password, 
+                                        is_active: u.isActive 
+                                    };
+                                    const { data, error } = await supabase.from('users').insert([dbUser]).select(); 
+                                    if (error) throw error;
+                                    if (data) {
+                                        setUsers(prev => [...prev, { 
+                                            id: data[0].id,
+                                            username: data[0].username,
+                                            name: data[0].name,
+                                            role: data[0].role,
+                                            initials: data[0].initials,
+                                            color: data[0].color,
+                                            password: data[0].password,
+                                            isActive: data[0].is_active 
+                                        } as User]); 
+                                    }
+                                } catch (err: any) {
+                                    alert("Error creating user: " + err.message);
+                                    throw err;
+                                }
                             }} onEditUser={async (u) => { 
-                                const dbUser = { 
-                                  username: u.username, 
-                                  name: u.name, 
-                                  role: u.role, 
-                                  initials: u.initials, 
-                                  color: u.color, 
-                                  password: u.password, 
-                                  is_active: u.isActive 
-                                };
-                                await supabase.from('users').update(dbUser).eq('id', u.id); 
-                                setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr)); 
+                                try {
+                                    const dbUser = { 
+                                      username: u.username, 
+                                      name: u.name, 
+                                      role: u.role, 
+                                      initials: u.initials, 
+                                      color: u.color, 
+                                      password: u.password, 
+                                      is_active: u.isActive 
+                                    };
+                                    const { error } = await supabase.from('users').update(dbUser).eq('id', u.id); 
+                                    if (error) throw error;
+                                    setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr)); 
+                                } catch (err: any) {
+                                    alert("Error updating user: " + err.message);
+                                    throw err;
+                                }
                             }} onDeleteUser={async (id) => { 
-                                await supabase.from('users').delete().eq('id', id); 
-                                setUsers(prev => prev.filter(u => u.id !== id)); 
+                                try {
+                                    const { error } = await supabase.from('users').delete().eq('id', id); 
+                                    if (error) throw error;
+                                    setUsers(prev => prev.filter(u => u.id !== id)); 
+                                } catch (err: any) {
+                                    alert("Error deleting user: " + err.message);
+                                }
                             }} />;
                             case 'occupancy': return <OccupancyManagement occupancyData={occupancyData} onUpdateOccupancy={async (d) => { await supabase.from('occupancy').upsert(d); setOccupancyData(d); }} />;
                             case 'checklist-management': return <ChecklistManagement templates={templates} availableShifts={shiftTypes} availableCategories={categories} onAddTemplate={async (t) => { const {data} = await supabase.from('task_templates').insert([{label: t.label, category: t.category, shift_type: t.shiftType}]).select(); if(data) setTemplates(prev => [...prev, {id: data[0].id, label: data[0].label, category: data[0].category, shiftType: data[0].shift_type}]); }} onDeleteTemplate={async (id) => { await supabase.from('task_templates').delete().eq('id', id); setTemplates(prev => prev.filter(t => t.id !== id)); }} onAddShift={()=>{}} onDeleteShift={()=>{}} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />;
