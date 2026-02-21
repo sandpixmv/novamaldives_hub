@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShiftData, ShiftType, User, DailyOccupancy, GuestRequest } from '../types';
-import { CheckCircle2, Clock, AlertCircle, ArrowRight, Sun, CalendarCheck, BarChart3, BellRing } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, ArrowRight, Sun, CalendarCheck, BarChart3, BellRing, RefreshCw, Wifi } from 'lucide-react';
 import { getSmartTaskSuggestion } from '../services/geminiService';
 
 interface DashboardProps {
@@ -14,6 +14,9 @@ interface DashboardProps {
   guestRequests: GuestRequest[];
   onShiftTypeChange?: (type: string) => void;
   onOpenView?: (view: string) => void;
+  isSyncing?: boolean;
+  lastUpdated?: Date;
+  onRefresh?: () => void;
 }
 
 // Helper to format date to dd-mmm-yyyy
@@ -30,7 +33,18 @@ const formatToResortDate = (dateInput: Date | string) => {
   return `${day}-${month}-${year}`;
 };
 
-export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklist, occupancyData, availableShifts, guestRequests, onShiftTypeChange, onOpenView }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ 
+  currentShift, 
+  openChecklist, 
+  occupancyData, 
+  availableShifts, 
+  guestRequests, 
+  onShiftTypeChange, 
+  onOpenView,
+  isSyncing = false,
+  lastUpdated = new Date(),
+  onRefresh
+}) => {
   const [suggestion, setSuggestion] = useState<string>("Loading smart suggestion...");
   
   const completedTasks = currentShift.tasks.filter(t => t.isCompleted).length;
@@ -79,12 +93,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ currentShift, openChecklis
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">The HUB Dashboard</h1>
-          <p className="text-gray-500 flex items-center gap-2 mt-1">
-            <CalendarCheck size={16} className="text-nova-teal" />
-            {formatToResortDate(new Date())} | Operational Status: <span className="text-nova-teal font-bold uppercase tracking-wider text-xs">Active</span>
-          </p>
+          <div className="flex items-center gap-3 mt-1">
+            <p className="text-gray-500 flex items-center gap-2 text-sm">
+              <CalendarCheck size={16} className="text-nova-teal" />
+              {formatToResortDate(new Date())}
+            </p>
+            <div className="h-1 w-1 rounded-full bg-gray-300"></div>
+            <div className="flex items-center gap-1.5">
+              <div className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`}></div>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                {isSyncing ? 'Syncing...' : 'Live Sync Active'}
+              </span>
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-3">
+          <div className="text-right hidden sm:block mr-2">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Last Updated</p>
+            <p className="text-xs font-medium text-gray-600">{lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+          </div>
+          <button 
+            onClick={onRefresh}
+            disabled={isSyncing}
+            className="p-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-nova-teal hover:border-nova-teal transition-all shadow-sm disabled:opacity-50"
+            title="Manual Refresh"
+          >
+            <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''} />
+          </button>
           <div className="bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm flex items-center gap-3">
             <div className="p-2 bg-nova-sand/50 rounded-lg">
               <Sun size={20} className="text-nova-accent" />

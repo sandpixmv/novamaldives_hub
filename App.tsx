@@ -74,7 +74,11 @@ export const App: React.FC = () => {
     const handleLogin = (user: User) => setCurrentUser(user);
     const handleLogout = () => { setCurrentUser(null); setCurrentView('dashboard'); };
 
+    const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+    const [isSyncing, setIsSyncing] = useState(false);
+
     const fetchAllData = async () => {
+        setIsSyncing(true);
         try {
             const opDate = getOperationalDate();
             
@@ -149,13 +153,43 @@ export const App: React.FC = () => {
                 logoUrl: settingsData.logo_url || '',
                 supportMessage: settingsData.support_message || ''
             });
+            
+            setLastUpdated(new Date());
         } catch (err) {
             console.error("Error fetching data:", err);
+        } finally {
+            setIsSyncing(false);
         }
     };
 
     useEffect(() => {
         fetchAllData();
+
+        // 1. Real-time subscriptions for instant updates
+        const guestRequestsSubscription = supabase
+            .channel('guest_requests_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'guest_requests' }, () => {
+                fetchAllData();
+            })
+            .subscribe();
+
+        const shiftsSubscription = supabase
+            .channel('shifts_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'completed_shifts' }, () => {
+                fetchAllData();
+            })
+            .subscribe();
+
+        // 2. Polling fallback (every 60 seconds) as requested for "frequent refresh"
+        const pollingInterval = setInterval(() => {
+            fetchAllData();
+        }, 60000);
+
+        return () => {
+            supabase.removeChannel(guestRequestsSubscription);
+            supabase.removeChannel(shiftsSubscription);
+            clearInterval(pollingInterval);
+        };
     }, []);
 
     // Check for overdue guest requests (not completed within 10 minutes)
@@ -472,7 +506,7 @@ export const App: React.FC = () => {
                     )}
                     {(() => {
                         switch(currentView) {
-                            case 'dashboard': return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onOpenView={(view) => setCurrentView(view)} />;
+                            case 'dashboard': return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onOpenView={(view) => setCurrentView(view)} isSyncing={isSyncing} lastUpdated={lastUpdated} onRefresh={fetchAllData} />;
                             case 'checklist': return <Checklist shift={currentShift} availableShiftTypes={shiftTypes} submittedShiftsToday={submittedShiftsToday} userRole={currentUser.role} onToggleTask={toggleTask} onUpdateNotes={(n) => setCurrentShift(prev => ({...prev, notes: n}))} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onSubmitShift={() => saveShift(true)} onSaveDraft={() => saveShift(false)} onReopenShift={() => handleReopenShift(currentShift.date, currentShift.type)} />;
                             case 'checklist-history': return <ChecklistHistory userRole={currentUser.role} onReopenShift={handleReopenShift} appConfig={appConfig} />;
                             case 'guest-requests': return <GuestRequests requests={guestRequests} onRequestAdd={handleAddGuestRequest} onRequestUpdate={handleUpdateGuestRequest} logoUrl={appConfig.logoUrl} currentUser={currentUser} />;
