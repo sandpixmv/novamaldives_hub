@@ -189,9 +189,12 @@ export const RepeaterGuests: React.FC<RepeaterGuestsProps> = ({
       }
     }
     
+    const now = new Date();
+    const generatedDate = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+    doc.text(`Generated on: ${generatedDate}`, 14, 30);
     
     const tableData = inHouse.map(g => [
       g.roomNumber || 'TBA',
