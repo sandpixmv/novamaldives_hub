@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, CheckSquare, History, Settings, LifeBuoy, BarChart3, Users, Briefcase, ListChecks, TrendingUp, BellRing, X, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, History, Settings, LifeBuoy, BarChart3, Users, Briefcase, ListChecks, TrendingUp, BellRing, X, ClipboardList, Star } from 'lucide-react';
 import { UserRole, AppConfig } from '../types';
 
 interface SidebarProps {
@@ -21,15 +21,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, u
     { id: 'reports', label: 'Reports', icon: <BarChart3 size={20} /> },
   ];
 
-  // Only the Front Office Manager (FOM) sees the administrative and management modules
-  const isFOM = userRole === 'Front Office Manager';
-
-  if (isFOM) {
+  // Front Office Manager (FOM) sees all modules
+  if (userRole === 'Front Office Manager') {
     navItems.push(
+      { id: 'repeater-guests', label: 'Repeater Guests', icon: <Star size={20} /> },
       { id: 'occupancy', label: 'Occupancy Planner', icon: <TrendingUp size={20} /> },
       { id: 'checklist-management', label: 'Checklist Manager', icon: <ListChecks size={20} /> },
       { id: 'users', label: 'Team Management', icon: <Users size={20} /> },
       { id: 'settings', label: 'Settings', icon: <Settings size={20} /> }
+    );
+  } 
+  // Asst. FOM sees base items + Repeater Guests
+  else if (userRole === 'Asst. FOM') {
+    navItems.push(
+      { id: 'repeater-guests', label: 'Repeater Guests', icon: <Star size={20} /> }
     );
   }
 

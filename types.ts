@@ -89,3 +89,19 @@ export interface GuestRequest {
   remarks?: string; // Optional remarks added during status change
   updatedBy?: string; // Name of user who last updated the status
 }
+
+export interface RepeaterGuest {
+  id: string;
+  guestNames: string[]; // Primary guest + Sharers
+  roomNumber: string;
+  roomMove?: string;
+  visitCount: number;
+  lastVisitDate?: string;
+  preferences?: string;
+  arrivalDate: string;
+  departureDate: string;
+  status: 'In-House' | 'Expected' | 'Checked-Out' | 'Due-Out';
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}

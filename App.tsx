@@ -9,8 +9,9 @@ import { OccupancyManagement } from './components/OccupancyManagement';
 import { Settings } from './components/Settings';
 import { ChecklistHistory } from './components/ChecklistHistory';
 import { GuestRequests } from './components/GuestRequests';
+import { RepeaterGuests } from './components/RepeaterGuests';
 import { Reports } from './components/Reports';
-import { ShiftData, ShiftType, TaskCategory, Task, User, ShiftAssignment, AppConfig, TaskTemplate, DailyOccupancy, GuestRequest } from './types';
+import { ShiftData, ShiftType, TaskCategory, Task, User, ShiftAssignment, AppConfig, TaskTemplate, DailyOccupancy, GuestRequest, RepeaterGuest } from './types';
 import { Menu, LogOut, Bell, AlertCircle, X } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
 
@@ -55,6 +56,7 @@ export const App: React.FC = () => {
     const [templates, setTemplates] = useState<TaskTemplate[]>([]);
     const [occupancyData, setOccupancyData] = useState<DailyOccupancy[]>([]);
     const [guestRequests, setGuestRequests] = useState<GuestRequest[]>([]);
+    const [repeaterGuests, setRepeaterGuests] = useState<RepeaterGuest[]>([]);
     const [submittedShiftsToday, setSubmittedShiftsToday] = useState<string[]>([]);
     const [categories, setCategories] = useState<TaskCategory[]>([]);
     const [overdueRequests, setOverdueRequests] = useState<GuestRequest[]>([]);
@@ -138,6 +140,23 @@ export const App: React.FC = () => {
                 loggedBy: r.logged_by || 'Unknown',
                 remarks: r.remarks,
                 updatedBy: r.updated_by
+            })));
+
+            const { data: rgData } = await supabase.from('repeater_guests').select('*').order('created_at', { ascending: false });
+            if (rgData) setRepeaterGuests(rgData.map(r => ({
+                id: r.id,
+                guestNames: Array.isArray(r.guest_names) ? r.guest_names : [r.guest_name || 'Unknown'],
+                roomNumber: r.room_number,
+                roomMove: r.room_move,
+                visitCount: r.visit_count,
+                lastVisitDate: r.last_visit_date,
+                preferences: r.preferences,
+                arrivalDate: r.arrival_date,
+                departureDate: r.departure_date,
+                status: r.status,
+                notes: r.notes,
+                createdAt: r.created_at,
+                updatedAt: r.updated_at
             })));
 
             const { data: catData } = await supabase.from('task_categories').select('name').order('name');
@@ -409,6 +428,84 @@ export const App: React.FC = () => {
         }
     };
 
+    const handleAddRepeaterGuest = async (guest: Omit<RepeaterGuest, 'id' | 'createdAt' | 'updatedAt' | 'status'>) => {
+        try {
+            const dbGuest = {
+                guest_names: guest.guestNames,
+                guest_name: guest.guestNames[0], // For backward compatibility
+                room_number: guest.roomNumber,
+                room_move: guest.roomMove,
+                visit_count: guest.visitCount,
+                last_visit_date: guest.lastVisitDate,
+                arrival_date: guest.arrivalDate,
+                departure_date: guest.departureDate,
+                preferences: guest.preferences,
+                notes: guest.notes
+            };
+
+            const { data, error } = await supabase.from('repeater_guests').insert(dbGuest).select().single();
+            if (error) throw error;
+
+            if (data) {
+                const newGuest: RepeaterGuest = {
+                    id: data.id,
+                    guestNames: data.guest_names,
+                    roomNumber: data.room_number,
+                    roomMove: data.room_move,
+                    visitCount: data.visit_count,
+                    lastVisitDate: data.last_visit_date,
+                    arrivalDate: data.arrival_date,
+                    departureDate: data.departure_date,
+                    status: data.status,
+                    preferences: data.preferences,
+                    notes: data.notes,
+                    createdAt: data.created_at,
+                    updatedAt: data.updated_at
+                };
+                setRepeaterGuests(prev => [...prev, newGuest]);
+            }
+        } catch (err: any) {
+            alert("Error adding repeater guest: " + err.message);
+        }
+    };
+
+    const handleUpdateRepeaterGuest = async (id: string, updates: Partial<RepeaterGuest>) => {
+        try {
+            const dbUpdates: any = {};
+            if (updates.guestNames) {
+                dbUpdates.guest_names = updates.guestNames;
+                dbUpdates.guest_name = updates.guestNames[0];
+            }
+            if (updates.roomNumber !== undefined) dbUpdates.room_number = updates.roomNumber;
+            if (updates.roomMove !== undefined) dbUpdates.room_move = updates.roomMove;
+            if (updates.visitCount !== undefined) dbUpdates.visit_count = updates.visitCount;
+            if (updates.lastVisitDate !== undefined) dbUpdates.last_visit_date = updates.lastVisitDate;
+            if (updates.arrivalDate) dbUpdates.arrival_date = updates.arrivalDate;
+            if (updates.departureDate) dbUpdates.departure_date = updates.departureDate;
+            if (updates.preferences !== undefined) dbUpdates.preferences = updates.preferences;
+            if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+            
+            dbUpdates.updated_at = new Date().toISOString();
+
+            const { error } = await supabase.from('repeater_guests').update(dbUpdates).eq('id', id);
+            if (error) throw error;
+
+            setRepeaterGuests(prev => prev.map(g => g.id === id ? { ...g, ...updates, updatedAt: dbUpdates.updated_at } : g));
+        } catch (err: any) {
+            alert("Error updating repeater guest: " + err.message);
+        }
+    };
+
+    const handleDeleteRepeaterGuest = async (id: string) => {
+        try {
+            const { error } = await supabase.from('repeater_guests').delete().eq('id', id);
+            if (error) throw error;
+            setRepeaterGuests(prev => prev.filter(g => g.id !== id));
+        } catch (err: any) {
+            alert("Error deleting repeater guest: " + err.message);
+        }
+    };
+
     const handleAddCategory = async (name: string) => {
         try {
             const { error } = await supabase.from('task_categories').insert([{ name }]);
@@ -505,8 +602,29 @@ export const App: React.FC = () => {
                         </div>
                     )}
                     {(() => {
+                        // Role-based view protection
+                        if (currentUser.role === 'Asst. FOM') {
+                            const allowedViews = ['dashboard', 'repeater-guests', 'checklist', 'checklist-history', 'guest-requests', 'reports'];
+                            if (!allowedViews.includes(currentView)) {
+                                return (
+                                    <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400">
+                                        <AlertCircle size={48} className="mb-4 opacity-20" />
+                                        <h3 className="text-xl font-bold text-gray-800">Access Restricted</h3>
+                                        <p>You do not have permission to view this module.</p>
+                                        <button 
+                                            onClick={() => setCurrentView('dashboard')}
+                                            className="mt-6 px-6 py-2 bg-nova-teal text-white rounded-xl font-bold shadow-lg hover:bg-teal-700 transition-all"
+                                        >
+                                            Return to Dashboard
+                                        </button>
+                                    </div>
+                                );
+                            }
+                        }
+
                         switch(currentView) {
                             case 'dashboard': return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onOpenView={(view) => setCurrentView(view)} isSyncing={isSyncing} lastUpdated={lastUpdated} onRefresh={fetchAllData} />;
+                            case 'repeater-guests': return <RepeaterGuests guests={repeaterGuests} onAddGuest={handleAddRepeaterGuest} onUpdateGuest={handleUpdateRepeaterGuest} onDeleteGuest={handleDeleteRepeaterGuest} currentUser={currentUser} logoUrl={appConfig.logoUrl} />;
                             case 'checklist': return <Checklist shift={currentShift} availableShiftTypes={shiftTypes} submittedShiftsToday={submittedShiftsToday} userRole={currentUser.role} onToggleTask={toggleTask} onUpdateNotes={(n) => setCurrentShift(prev => ({...prev, notes: n}))} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onSubmitShift={() => saveShift(true)} onSaveDraft={() => saveShift(false)} onReopenShift={() => handleReopenShift(currentShift.date, currentShift.type)} />;
                             case 'checklist-history': return <ChecklistHistory userRole={currentUser.role} onReopenShift={handleReopenShift} appConfig={appConfig} />;
                             case 'guest-requests': return <GuestRequests requests={guestRequests} onRequestAdd={handleAddGuestRequest} onRequestUpdate={handleUpdateGuestRequest} logoUrl={appConfig.logoUrl} currentUser={currentUser} />;
