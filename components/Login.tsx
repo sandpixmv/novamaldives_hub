@@ -56,12 +56,12 @@ export const Login: React.FC<LoginProps> = ({ users, onLogin, appConfig }) => {
         
         <div className="p-8 lg:p-10 flex flex-col justify-center">
             <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center h-16 mb-4">
+                <div className="inline-flex items-center justify-center h-24 mb-6">
                      {appConfig.logoUrl ? (
-                         <img src={appConfig.logoUrl} alt="App Logo" className="h-16 w-auto object-contain" />
+                         <img src={appConfig.logoUrl} alt="App Logo" className="h-24 w-auto object-contain" />
                      ) : (
-                         <div className="w-14 h-14 bg-nova-teal/10 rounded-xl flex items-center justify-center text-nova-teal">
-                            <LifeBuoy size={32} className="text-nova-accent" />
+                         <div className="w-20 h-20 bg-nova-teal/10 rounded-2xl flex items-center justify-center text-nova-teal">
+                            <LifeBuoy size={48} className="text-nova-accent" />
                          </div>
                      )}
                 </div>

@@ -52,7 +52,7 @@ export const RepeaterGuests: React.FC<RepeaterGuestsProps> = ({
   logoUrl
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'All' | 'In-House' | 'Expected' | 'Checked-Out'>('All');
+  const [filterStatus, setFilterStatus] = useState<'All' | 'In-House' | 'Expected' | 'Checked-Out'>('In-House');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGuest, setEditingGuest] = useState<RepeaterGuest | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -220,8 +220,11 @@ export const RepeaterGuests: React.FC<RepeaterGuestsProps> = ({
       }
     });
 
-    doc.save(`InHouse_Repeaters_${new Date().toISOString().split('T')[0]}.pdf`);
+    const fileDate = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+    doc.save(`InHouse_Repeaters_${fileDate}.pdf`);
   };
+
+  const canManageRepeaters = currentUser.role === 'Front Office Manager' || currentUser.role === 'Asst. FOM';
 
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl mx-auto pb-8">
@@ -242,13 +245,15 @@ export const RepeaterGuests: React.FC<RepeaterGuestsProps> = ({
             <FileText size={20} className="text-nova-teal" />
             In-House PDF
           </button>
-          <button 
-            onClick={handleOpenAdd}
-            className="flex items-center gap-2 bg-nova-teal text-white px-4 py-2 rounded-xl font-bold shadow-lg shadow-teal-100 hover:bg-teal-700 transition-all"
-          >
-            <Plus size={20} />
-            Add Repeater
-          </button>
+          {canManageRepeaters && (
+            <button 
+              onClick={handleOpenAdd}
+              className="flex items-center gap-2 bg-nova-teal text-white px-4 py-2 rounded-xl font-bold shadow-lg shadow-teal-100 hover:bg-teal-700 transition-all"
+            >
+              <Plus size={20} />
+              Add Repeater
+            </button>
+          )}
         </div>
       </div>
 
@@ -353,24 +358,28 @@ export const RepeaterGuests: React.FC<RepeaterGuestsProps> = ({
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => handleOpenEdit(guest)}
-                        className="p-2 text-gray-400 hover:text-nova-teal hover:bg-teal-50 rounded-lg transition-all"
-                        title="Edit Guest"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button 
-                        onClick={() => {
-                          if(confirm('Are you sure you want to delete this repeater record?')) {
-                            onDeleteGuest(guest.id);
-                          }
-                        }}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        title="Delete Guest"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {canManageRepeaters && (
+                        <>
+                          <button 
+                            onClick={() => handleOpenEdit(guest)}
+                            className="p-2 text-gray-400 hover:text-nova-teal hover:bg-teal-50 rounded-lg transition-all"
+                            title="Edit Guest"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if(confirm('Are you sure you want to delete this repeater record?')) {
+                                onDeleteGuest(guest.id);
+                              }
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            title="Delete Guest"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

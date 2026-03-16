@@ -16,6 +16,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, u
   const navItems = [
     { id: 'dashboard', label: 'My Dashboard', icon: <LayoutDashboard size={20} /> },
     { id: 'guest-requests', label: 'Guest Requests', icon: <BellRing size={20} /> },
+    { id: 'repeater-guests', label: 'Repeater Guests', icon: <Star size={20} /> },
     { id: 'checklist', label: 'Shift Check List', icon: <CheckSquare size={20} /> },
     { id: 'checklist-history', label: 'Checklist History', icon: <ClipboardList size={20} /> },
     { id: 'reports', label: 'Reports', icon: <BarChart3 size={20} /> },
@@ -24,18 +25,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, u
   // Front Office Manager (FOM) sees all modules
   if (userRole === 'Front Office Manager') {
     navItems.push(
-      { id: 'repeater-guests', label: 'Repeater Guests', icon: <Star size={20} /> },
       { id: 'occupancy', label: 'Occupancy Planner', icon: <TrendingUp size={20} /> },
       { id: 'checklist-management', label: 'Checklist Manager', icon: <ListChecks size={20} /> },
       { id: 'users', label: 'Team Management', icon: <Users size={20} /> },
       { id: 'settings', label: 'Settings', icon: <Settings size={20} /> }
     );
   } 
-  // Asst. FOM sees base items + Repeater Guests
+  // Asst. FOM sees base items (Repeater Guests is now in base)
   else if (userRole === 'Asst. FOM') {
-    navItems.push(
-      { id: 'repeater-guests', label: 'Repeater Guests', icon: <Star size={20} /> }
-    );
+    // No extra items needed here for now as Repeater Guests moved to base
   }
 
   return (
@@ -43,18 +41,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, u
         fixed inset-y-0 left-0 w-64 bg-white h-screen border-r border-gray-200 flex flex-col z-40 transition-transform duration-300 ease-in-out md:translate-x-0
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
     `}>
-      <div className="h-16 flex items-center justify-between px-6 border-b border-gray-100">
-        <div className="flex items-center gap-2 text-nova-teal font-bold text-xl overflow-hidden">
+      <div className="py-10 flex flex-col items-center justify-center px-6 border-b border-gray-100 relative">
+        <div className="flex flex-col items-center gap-4 text-nova-teal font-bold">
            {appConfig.logoUrl ? (
-             <img src={appConfig.logoUrl} alt="Logo" className="h-8 w-8 object-contain" />
+             <img src={appConfig.logoUrl} alt="Logo" className="h-28 w-28 object-contain" />
            ) : (
-             <LifeBuoy className="text-nova-accent flex-shrink-0" />
+             <LifeBuoy size={56} className="text-nova-accent flex-shrink-0" />
            )}
-           <span className="truncate">{appConfig.appName}</span>
+           <span className="text-center leading-tight text-base uppercase tracking-wider">{appConfig.appName}</span>
         </div>
         <button 
             onClick={onClose}
-            className="md:hidden p-2 text-gray-400 hover:text-nova-teal transition-colors"
+            className="md:hidden absolute top-4 right-4 p-2 text-gray-400 hover:text-nova-teal transition-colors"
         >
             <X size={20} />
         </button>
