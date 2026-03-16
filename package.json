@@ -12,6 +12,7 @@
   "dependencies": {
     "@google/genai": "^1.33.0",
     "@supabase/supabase-js": "2",
+    "framer-motion": "^12.37.0",
     "jspdf": "2.5.1",
     "jspdf-autotable": "3.8.1",
     "lucide-react": "^0.561.0",

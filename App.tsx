@@ -49,6 +49,8 @@ export const App: React.FC = () => {
     const [appConfig, setAppConfig] = useState<AppConfig>({
         appName: 'The HUB | Nova Maldives',
         logoUrl: '',
+        loginBgUrl: '',
+        loginFont: 'Righteous',
         supportMessage: 'Contact IT for support.'
     });
 
@@ -170,6 +172,8 @@ export const App: React.FC = () => {
             if (settingsData) setAppConfig({
                 appName: settingsData.app_name || 'The HUB | Nova Maldives',
                 logoUrl: settingsData.logo_url || '',
+                loginBgUrl: settingsData.login_bg_url || '',
+                loginFont: (settingsData.login_font as any) || 'Righteous',
                 supportMessage: settingsData.support_message || ''
             });
             
@@ -687,7 +691,7 @@ export const App: React.FC = () => {
                             }} />;
                             case 'occupancy': return <OccupancyManagement occupancyData={occupancyData} onUpdateOccupancy={async (d) => { await supabase.from('occupancy').upsert(d); setOccupancyData(d); }} />;
                             case 'checklist-management': return <ChecklistManagement templates={templates} availableShifts={shiftTypes} availableCategories={categories} onAddTemplate={async (t) => { const {data} = await supabase.from('task_templates').insert([{label: t.label, category: t.category, shift_type: t.shiftType}]).select(); if(data) setTemplates(prev => [...prev, {id: data[0].id, label: data[0].label, category: data[0].category, shiftType: data[0].shift_type}]); }} onDeleteTemplate={async (id) => { await supabase.from('task_templates').delete().eq('id', id); setTemplates(prev => prev.filter(t => t.id !== id)); }} onAddShift={()=>{}} onDeleteShift={()=>{}} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />;
-                            case 'settings': return <Settings userRole={currentUser.role} config={appConfig} onSave={async (c) => { await supabase.from('settings').upsert({id: 'global', app_name: c.appName, logo_url: c.logoUrl, support_message: c.supportMessage}); setAppConfig(c); }} />;
+                            case 'settings': return <Settings userRole={currentUser.role} config={appConfig} onSave={async (c) => { await supabase.from('settings').upsert({id: 'global', app_name: c.appName, logo_url: c.logoUrl, login_bg_url: c.loginBgUrl, login_font: c.loginFont, support_message: c.supportMessage}); setAppConfig(c); }} />;
                             default: return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onOpenView={(view) => setCurrentView(view)} />;
                         }
                     })()}

@@ -64,9 +64,13 @@ export interface DailyOccupancy {
   isHighSeason?: boolean;
 }
 
+export type LoginFont = 'Inter' | 'Space Grotesk' | 'Righteous' | 'Playfair Display' | 'Montserrat';
+
 export interface AppConfig {
   appName: string;
   logoUrl: string;
+  loginBgUrl: string;
+  loginFont: LoginFont;
   supportMessage: string;
 }
 

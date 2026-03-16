@@ -48,7 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, u
            ) : (
              <LifeBuoy size={56} className="text-nova-accent flex-shrink-0" />
            )}
-           <span className="text-center leading-tight text-base uppercase tracking-wider">{appConfig.appName}</span>
+           <span className="text-center leading-tight text-base font-unique uppercase tracking-normal text-nova-teal">{appConfig.appName}</span>
         </div>
         <button 
             onClick={onClose}
