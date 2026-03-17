@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, CheckSquare, History, Settings, LifeBuoy, BarChart3, Users, Briefcase, ListChecks, TrendingUp, BellRing, X, ClipboardList, Star } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, History, Settings, LifeBuoy, BarChart3, Users, Briefcase, ListChecks, TrendingUp, BellRing, X, ClipboardList, Star, UserCircle } from 'lucide-react';
 import { UserRole, AppConfig } from '../types';
 
 interface SidebarProps {
@@ -20,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, u
     { id: 'checklist', label: 'Shift Check List', icon: <CheckSquare size={20} /> },
     { id: 'checklist-history', label: 'Checklist History', icon: <ClipboardList size={20} /> },
     { id: 'reports', label: 'Reports', icon: <BarChart3 size={20} /> },
+    { id: 'profile', label: 'My Profile', icon: <UserCircle size={20} /> },
   ];
 
   // Front Office Manager (FOM) sees all modules

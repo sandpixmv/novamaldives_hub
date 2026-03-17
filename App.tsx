@@ -11,6 +11,7 @@ import { ChecklistHistory } from './components/ChecklistHistory';
 import { GuestRequests } from './components/GuestRequests';
 import { RepeaterGuests } from './components/RepeaterGuests';
 import { Reports } from './components/Reports';
+import { UserProfile } from './components/UserProfile';
 import { ShiftData, ShiftType, TaskCategory, Task, User, ShiftAssignment, AppConfig, TaskTemplate, DailyOccupancy, GuestRequest, RepeaterGuest } from './types';
 import { Menu, LogOut, Bell, AlertCircle, X } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
@@ -549,11 +550,16 @@ export const App: React.FC = () => {
                      <button className="md:hidden p-2 text-gray-600 hover:text-nova-teal" onClick={() => setIsSidebarOpen(true)}> <Menu size={24} /> </button>
                      <div className="flex items-center gap-4 ml-auto">
                          <div className="flex items-center gap-3">
-                             <div className="text-right hidden lg:block">
-                                 <p className="text-sm font-bold text-gray-800">{currentUser.name}</p>
-                                 <p className="text-xs text-gray-500">{currentUser.role}</p>
-                             </div>
-                             <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-white ${currentUser.color}`}> {currentUser.initials} </div>
+                             <button 
+                                onClick={() => setCurrentView('profile')}
+                                className="flex items-center gap-3 hover:bg-gray-50 p-1 rounded-xl transition-colors text-left"
+                             >
+                                 <div className="text-right hidden lg:block">
+                                     <p className="text-sm font-bold text-gray-800">{currentUser.name}</p>
+                                     <p className="text-xs text-gray-500">{currentUser.role}</p>
+                                 </div>
+                                 <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-white ${currentUser.color}`}> {currentUser.initials} </div>
+                             </button>
                              <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500" title="Logout"> <LogOut size={20} /> </button>
                          </div>
                      </div>
@@ -608,7 +614,7 @@ export const App: React.FC = () => {
                     {(() => {
                         // Role-based view protection
                         if (currentUser.role === 'Asst. FOM') {
-                            const allowedViews = ['dashboard', 'repeater-guests', 'checklist', 'checklist-history', 'guest-requests', 'reports'];
+                            const allowedViews = ['dashboard', 'repeater-guests', 'checklist', 'checklist-history', 'guest-requests', 'reports', 'profile'];
                             if (!allowedViews.includes(currentView)) {
                                 return (
                                     <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400">
@@ -692,6 +698,7 @@ export const App: React.FC = () => {
                             case 'occupancy': return <OccupancyManagement occupancyData={occupancyData} onUpdateOccupancy={async (d) => { await supabase.from('occupancy').upsert(d); setOccupancyData(d); }} />;
                             case 'checklist-management': return <ChecklistManagement templates={templates} availableShifts={shiftTypes} availableCategories={categories} onAddTemplate={async (t) => { const {data} = await supabase.from('task_templates').insert([{label: t.label, category: t.category, shift_type: t.shiftType}]).select(); if(data) setTemplates(prev => [...prev, {id: data[0].id, label: data[0].label, category: data[0].category, shiftType: data[0].shift_type}]); }} onDeleteTemplate={async (id) => { await supabase.from('task_templates').delete().eq('id', id); setTemplates(prev => prev.filter(t => t.id !== id)); }} onAddShift={()=>{}} onDeleteShift={()=>{}} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />;
                             case 'settings': return <Settings userRole={currentUser.role} config={appConfig} onSave={async (c) => { await supabase.from('settings').upsert({id: 'global', app_name: c.appName, logo_url: c.logoUrl, login_bg_url: c.loginBgUrl, login_font: c.loginFont, support_message: c.supportMessage}); setAppConfig(c); }} />;
+                            case 'profile': return <UserProfile user={currentUser} onUpdateUser={(u) => { setCurrentUser(u); setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr)); }} />;
                             default: return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onOpenView={(view) => setCurrentView(view)} />;
                         }
                     })()}
