@@ -15,6 +15,8 @@ interface DashboardProps {
   onShiftTypeChange?: (type: string) => void;
   onOpenView?: (view: string) => void;
   isSyncing?: boolean;
+  isLiveSync?: boolean;
+  onToggleLiveSync?: () => void;
   lastUpdated?: Date;
   onRefresh?: () => void;
 }
@@ -42,6 +44,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onShiftTypeChange, 
   onOpenView,
   isSyncing = false,
+  isLiveSync = true,
+  onToggleLiveSync,
   lastUpdated = new Date(),
   onRefresh
 }) => {
@@ -92,18 +96,45 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">The HUB Dashboard</h1>
-          <div className="flex items-center gap-3 mt-1">
+          <div className="flex flex-wrap items-center gap-3 mt-1">
             <p className="text-gray-500 flex items-center gap-2 text-sm">
               <CalendarCheck size={16} className="text-nova-teal" />
               {formatToResortDate(new Date())}
             </p>
             <div className="h-1 w-1 rounded-full bg-gray-300"></div>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-400 animate-pulse' : 'bg-green-500'}`}></div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                {isSyncing ? 'Syncing...' : 'Live Sync Active'}
-              </span>
-            </div>
+            {onToggleLiveSync ? (
+              <button
+                onClick={onToggleLiveSync}
+                className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all shadow-sm border ${
+                  isLiveSync 
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
+                    : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                }`}
+                title={isLiveSync ? 'Live Sync is ON. Click to switch to Manual Sync Mode' : 'Manual Sync Mode. Click to enable Live Sync Mode'}
+              >
+                <span className="relative flex h-2.5 w-2.5">
+                  {isLiveSync && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  )}
+                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                    isSyncing ? 'bg-amber-500' : isLiveSync ? 'bg-emerald-500' : 'bg-amber-500'
+                  }`}></span>
+                </span>
+                <span className="uppercase tracking-wider text-[11px]">
+                  {isSyncing ? 'Syncing...' : isLiveSync ? 'Live Sync Active' : 'Manual Sync Mode'}
+                </span>
+                <span className="text-[10px] font-normal text-gray-400 ml-1">
+                  ({isLiveSync ? 'auto' : 'click to enable'})
+                </span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <div className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-amber-400 animate-pulse' : isLiveSync ? 'bg-emerald-500 animate-pulse' : 'bg-blue-500'}`}></div>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                  {isSyncing ? 'Syncing...' : isLiveSync ? 'Live Sync Active' : 'Manual Sync Mode'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3">

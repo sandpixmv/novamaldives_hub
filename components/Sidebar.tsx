@@ -1,41 +1,57 @@
 import React from 'react';
 import { LayoutDashboard, CheckSquare, History, Settings, LifeBuoy, BarChart3, Users, Briefcase, ListChecks, TrendingUp, BellRing, X, ClipboardList, Star, UserCircle } from 'lucide-react';
-import { UserRole, AppConfig } from '../types';
+import { UserRole, AppConfig, User, UserRightsConfig, UserRightKey } from '../types';
+import { hasUserRight } from '../services/permissions';
 
 interface SidebarProps {
   currentView: string;
   setCurrentView: (view: string) => void;
   userRole?: UserRole;
+  currentUser?: User | null;
+  rightsConfig?: UserRightsConfig | null;
   appConfig: AppConfig;
   isOpen?: boolean;
   onClose?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ currentView, setCurrentView, userRole, appConfig, isOpen, onClose }) => {
-  // Define the base navigation items available to ALL users
-  const navItems = [
-    { id: 'dashboard', label: 'My Dashboard', icon: <LayoutDashboard size={20} /> },
-    { id: 'guest-requests', label: 'Guest Requests', icon: <BellRing size={20} /> },
-    { id: 'repeater-guests', label: 'Repeater Guests', icon: <Star size={20} /> },
-    { id: 'checklist', label: 'Shift Check List', icon: <CheckSquare size={20} /> },
-    { id: 'checklist-history', label: 'Checklist History', icon: <ClipboardList size={20} /> },
-    { id: 'reports', label: 'Reports', icon: <BarChart3 size={20} /> },
-    { id: 'profile', label: 'My Profile', icon: <UserCircle size={20} /> },
+export const Sidebar: React.FC<SidebarProps> = ({ 
+  currentView, 
+  setCurrentView, 
+  userRole, 
+  currentUser,
+  rightsConfig,
+  appConfig, 
+  isOpen, 
+  onClose 
+}) => {
+  interface NavItem {
+    id: string;
+    label: string;
+    icon: React.ReactNode;
+    requiredRight?: UserRightKey;
+  }
+
+  // All possible navigation items mapped to their required rights
+  const allNavItems: NavItem[] = [
+    { id: 'dashboard', label: 'My Dashboard', icon: <LayoutDashboard size={20} />, requiredRight: 'view_dashboard' },
+    { id: 'guest-requests', label: 'Guest Requests', icon: <BellRing size={20} />, requiredRight: 'view_guest_requests' },
+    { id: 'repeater-guests', label: 'Repeater Guests', icon: <Star size={20} />, requiredRight: 'view_repeater_guests' },
+    { id: 'checklist', label: 'Shift Check List', icon: <CheckSquare size={20} />, requiredRight: 'view_checklist' },
+    { id: 'checklist-history', label: 'Checklist History', icon: <ClipboardList size={20} />, requiredRight: 'view_checklist_history' },
+    { id: 'reports', label: 'Reports', icon: <BarChart3 size={20} />, requiredRight: 'view_reports' },
+    { id: 'occupancy', label: 'Occupancy Planner', icon: <TrendingUp size={20} />, requiredRight: 'view_occupancy' },
+    { id: 'checklist-management', label: 'Checklist Manager', icon: <ListChecks size={20} />, requiredRight: 'view_checklist_management' },
+    { id: 'users', label: 'Team Management', icon: <Users size={20} />, requiredRight: 'view_user_management' },
+    { id: 'settings', label: 'Settings', icon: <Settings size={20} />, requiredRight: 'view_settings' },
+    { id: 'profile', label: 'My Profile', icon: <UserCircle size={20} /> }, // Always accessible
   ];
 
-  // Front Office Manager (FOM) sees all modules
-  if (userRole === 'Front Office Manager') {
-    navItems.push(
-      { id: 'occupancy', label: 'Occupancy Planner', icon: <TrendingUp size={20} /> },
-      { id: 'checklist-management', label: 'Checklist Manager', icon: <ListChecks size={20} /> },
-      { id: 'users', label: 'Team Management', icon: <Users size={20} /> },
-      { id: 'settings', label: 'Settings', icon: <Settings size={20} /> }
-    );
-  } 
-  // Asst. FOM sees base items (Repeater Guests is now in base)
-  else if (userRole === 'Asst. FOM') {
-    // No extra items needed here for now as Repeater Guests moved to base
-  }
+  // Filter items based on user rights
+  const navItems = allNavItems.filter(item => {
+    if (!item.requiredRight) return true;
+    if (!currentUser) return false;
+    return hasUserRight(currentUser, item.requiredRight, rightsConfig);
+  });
 
   return (
     <div className={`

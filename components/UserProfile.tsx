@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { User, UserRole } from '../types';
-import { Key, Save, Check, AlertCircle, Loader2, User as UserIcon, Shield } from 'lucide-react';
+import { User, UserRole, UserRightsConfig } from '../types';
+import { Key, Save, Check, AlertCircle, Loader2, User as UserIcon, Shield, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
+import { getUserEffectiveRights, USER_RIGHTS_DEFINITIONS } from '../services/permissions';
 
 interface UserProfileProps {
   user: User;
+  rightsConfig?: UserRightsConfig | null;
   onUpdateUser: (updatedUser: User) => void;
 }
 
-export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser }) => {
+export const UserProfile: React.FC<UserProfileProps> = ({ user, rightsConfig, onUpdateUser }) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -188,6 +190,39 @@ export const UserProfile: React.FC<UserProfileProps> = ({ user, onUpdateUser }) 
               </div>
             </form>
           </div>
+        </div>
+      </div>
+
+      {/* Assigned Rights Summary Card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="text-nova-teal" size={20} />
+            <h3 className="text-lg font-bold text-gray-800">My Assigned Rights & Capabilities</h3>
+          </div>
+          <span className="text-xs text-gray-400 font-medium">
+            Managed by Front Office Manager
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {USER_RIGHTS_DEFINITIONS.map(def => {
+            const hasRight = getUserEffectiveRights(user, rightsConfig).includes(def.key);
+            if (!hasRight) return null;
+
+            return (
+              <div 
+                key={def.key} 
+                className="flex items-start gap-2.5 p-3 rounded-xl bg-teal-50/50 border border-teal-100/80"
+              >
+                <CheckCircle2 size={16} className="text-nova-teal mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-gray-800">{def.label}</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">{def.description}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -4,6 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>The HUB | Nova Maldives</title>
+    <script>
+      // Prevent Vite's dev client from establishing a WebSocket connection that triggers reloads on disconnect
+      (function() {
+        const OriginalWebSocket = window.WebSocket;
+        window.WebSocket = function(url, protocols) {
+          if (typeof url === 'string' && (url.includes('vite') || url.includes('hmr') || url.includes('3000'))) {
+            console.log('Intercepted and disabled dev server WebSocket connection:', url);
+            return {
+              url: url,
+              readyState: 3, // CLOSED
+              addEventListener: function(type, listener) {},
+              removeEventListener: function(type, listener) {},
+              send: function(data) {},
+              close: function() {}
+            };
+          }
+          return new OriginalWebSocket(url, protocols);
+        };
+        window.WebSocket.prototype = OriginalWebSocket.prototype;
+      })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Righteous&family=Playfair+Display:wght@400;700&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
     <script>

@@ -19,6 +19,7 @@ interface CompletedShiftRecord {
 
 interface ChecklistHistoryProps {
   userRole?: UserRole;
+  canReopenShift?: boolean;
   onReopenShift?: (date: string, shiftType: string) => Promise<void>;
   appConfig: AppConfig;
 }
@@ -37,7 +38,7 @@ const formatToResortDate = (dateInput: Date | string) => {
   return `${day}-${month}-${year}`;
 };
 
-export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, onReopenShift, appConfig }) => {
+export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, canReopenShift, onReopenShift, appConfig }) => {
   const [history, setHistory] = useState<CompletedShiftRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -45,7 +46,9 @@ export const ChecklistHistory: React.FC<ChecklistHistoryProps> = ({ userRole, on
   const [searchTerm, setSearchTerm] = useState('');
   const [filterShift, setFilterShift] = useState('All');
 
-  const isManager = userRole === 'Front Office Manager' || userRole === 'Asst. FOM';
+  const isManager = canReopenShift !== undefined 
+    ? canReopenShift 
+    : (userRole === 'Front Office Manager' || userRole === 'Asst. FOM');
   const opDate = getOperationalDate();
 
   useEffect(() => {

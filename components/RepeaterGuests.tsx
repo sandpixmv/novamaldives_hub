@@ -11,6 +11,8 @@ interface RepeaterGuestsProps {
   onDeleteGuest: (id: string) => Promise<void>;
   currentUser: AppUser;
   logoUrl?: string;
+  canManageRepeaters?: boolean;
+  canDeleteRepeaters?: boolean;
 }
 
 // Helper to calculate status based on dates
@@ -49,7 +51,9 @@ export const RepeaterGuests: React.FC<RepeaterGuestsProps> = ({
   onUpdateGuest, 
   onDeleteGuest,
   currentUser,
-  logoUrl
+  logoUrl,
+  canManageRepeaters: canManageRepeatersProp,
+  canDeleteRepeaters: canDeleteRepeatersProp
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<'All' | 'In-House' | 'Expected' | 'Checked-Out'>('In-House');
@@ -224,7 +228,13 @@ export const RepeaterGuests: React.FC<RepeaterGuestsProps> = ({
     doc.save(`InHouse_Repeaters_${fileDate}.pdf`);
   };
 
-  const canManageRepeaters = currentUser.role === 'Front Office Manager' || currentUser.role === 'Asst. FOM';
+  const canManageRepeaters = canManageRepeatersProp !== undefined 
+    ? canManageRepeatersProp 
+    : (currentUser.role === 'Front Office Manager' || currentUser.role === 'Asst. FOM');
+
+  const canDeleteRepeaters = canDeleteRepeatersProp !== undefined
+    ? canDeleteRepeatersProp
+    : (currentUser.role === 'Front Office Manager' || currentUser.role === 'Asst. FOM');
 
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl mx-auto pb-8">
@@ -359,26 +369,26 @@ export const RepeaterGuests: React.FC<RepeaterGuestsProps> = ({
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       {canManageRepeaters && (
-                        <>
-                          <button 
-                            onClick={() => handleOpenEdit(guest)}
-                            className="p-2 text-gray-400 hover:text-nova-teal hover:bg-teal-50 rounded-lg transition-all"
-                            title="Edit Guest"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              if(confirm('Are you sure you want to delete this repeater record?')) {
-                                onDeleteGuest(guest.id);
-                              }
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                            title="Delete Guest"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </>
+                        <button 
+                          onClick={() => handleOpenEdit(guest)}
+                          className="p-2 text-gray-400 hover:text-nova-teal hover:bg-teal-50 rounded-lg transition-all"
+                          title="Edit Guest"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                      )}
+                      {canDeleteRepeaters && (
+                        <button 
+                          onClick={() => {
+                            if(confirm('Are you sure you want to delete this repeater record?')) {
+                              onDeleteGuest(guest.id);
+                            }
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                          title="Delete Guest"
+                        >
+                          <Trash2 size={16} />
+                        </button>
                       )}
                     </div>
                   </td>

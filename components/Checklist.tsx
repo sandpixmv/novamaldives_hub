@@ -8,6 +8,8 @@ interface ChecklistProps {
   availableShiftTypes: ShiftType[];
   submittedShiftsToday: string[];
   userRole: UserRole;
+  canReopen?: boolean;
+  canSubmit?: boolean;
   onToggleTask: (taskId: string) => void;
   onUpdateNotes: (notes: string) => void;
   onShiftTypeChange: (type: ShiftType) => void;
@@ -35,6 +37,8 @@ export const Checklist: React.FC<ChecklistProps> = ({
   availableShiftTypes, 
   submittedShiftsToday,
   userRole,
+  canReopen: propCanReopen,
+  canSubmit: propCanSubmit,
   onToggleTask, 
   onUpdateNotes, 
   onShiftTypeChange,
@@ -48,8 +52,9 @@ export const Checklist: React.FC<ChecklistProps> = ({
   const isCurrentShiftSubmitted = shift.status === 'submitted';
   const hasLocalProgress = shift.notes?.trim() || shift.tasks.some(t => t.isCompleted);
   
-  // A shift is editable if it's NOT submitted
-  const isEditable = !isCurrentShiftSubmitted;
+  // A shift is editable if it's NOT submitted and user has submit/edit right
+  const canSubmit = propCanSubmit !== undefined ? propCanSubmit : true;
+  const isEditable = !isCurrentShiftSubmitted && canSubmit;
   
   // Determine if it's a draft (either saved as one or explicitly set via reopen)
   const isDraftMode = shift.status === 'draft';
@@ -57,7 +62,7 @@ export const Checklist: React.FC<ChecklistProps> = ({
   // Dropdown is now ALWAYS enabled as per user request
   const isSwitchingLocked = false; 
 
-  const canReopen = userRole === 'Front Office Manager' || userRole === 'Asst. FOM';
+  const canReopen = propCanReopen !== undefined ? propCanReopen : (userRole === 'Front Office Manager' || userRole === 'Asst. FOM');
 
   const groupedTasks = shift.tasks.reduce((acc, task) => {
     if (!acc[task.category]) acc[task.category] = [];

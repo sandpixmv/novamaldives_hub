@@ -10,6 +10,8 @@ interface GuestRequestsProps {
   onRequestUpdate: (id: string, updates: Partial<GuestRequest>) => void;
   logoUrl?: string;
   currentUser: AppUser;
+  canManageRequests?: boolean;
+  canExportData?: boolean;
 }
 
 const CATEGORIES = [
@@ -47,7 +49,15 @@ const formatToResortDate = (dateInput: Date | string) => {
   return `${day}-${month}-${year}`;
 };
 
-export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onRequestAdd, onRequestUpdate, logoUrl, currentUser }) => {
+export const GuestRequests: React.FC<GuestRequestsProps> = ({ 
+  requests, 
+  onRequestAdd, 
+  onRequestUpdate, 
+  logoUrl, 
+  currentUser,
+  canManageRequests = true,
+  canExportData = true
+}) => {
   const [filterStatus, setFilterStatus] = useState<RequestStatus | 'All'>('All');
   const [selectedDate, setSelectedDate] = useState<string>(getLocalToday());
   const [searchTerm, setSearchTerm] = useState('');
@@ -254,12 +264,14 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
           </h2>
           <p className="text-gray-500">Track and manage guest requests for the selected day.</p>
         </div>
-        <button 
-            onClick={() => setIsModalOpen(true)}
-            className="w-full md:w-auto bg-nova-teal text-white px-4 py-2 rounded-lg font-bold shadow-lg hover:bg-teal-700 transition-all flex items-center justify-center gap-2"
-        >
-            <Plus size={20} /> New Request
-        </button>
+        {canManageRequests && (
+          <button 
+              onClick={() => setIsModalOpen(true)}
+              className="w-full md:w-auto bg-nova-teal text-white px-4 py-2 rounded-lg font-bold shadow-lg hover:bg-teal-700 transition-all flex items-center justify-center gap-2"
+          >
+              <Plus size={20} /> New Request
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -321,14 +333,16 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                              </button>
                            )}
                        </div>
-                       <button 
-                          onClick={handleExportPDF}
-                          disabled={filteredRequests.length === 0}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-nova-teal hover:border-nova-teal transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto shadow-sm"
-                          title="Generate Hub Traffic Sheet PDF"
-                       >
-                           <FileDown size={18} /> Export Report
-                       </button>
+                       {canExportData && (
+                         <button 
+                            onClick={handleExportPDF}
+                            disabled={filteredRequests.length === 0}
+                            className="flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 hover:text-nova-teal hover:border-nova-teal transition-all disabled:opacity-50 disabled:cursor-not-allowed w-full md:w-auto shadow-sm"
+                            title="Generate Hub Traffic Sheet PDF"
+                         >
+                             <FileDown size={18} /> Export Report
+                         </button>
+                       )}
                   </div>
                   
                   <div className="relative w-full md:w-64">
@@ -411,26 +425,28 @@ export const GuestRequests: React.FC<GuestRequestsProps> = ({ requests, onReques
                                     {req.status}
                                 </span>
                                 
-                                <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-100">
-                                    {req.status === 'Pending' && (
-                                        <button 
-                                            onClick={() => setUpdatingRequest({ id: req.id, nextStatus: 'In Progress' })}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" 
-                                            title="Start"
-                                        >
-                                            <Wrench size={18} />
-                                        </button>
-                                    )}
-                                    {req.status !== 'Completed' && (
-                                        <button 
-                                            onClick={() => setUpdatingRequest({ id: req.id, nextStatus: 'Completed' })}
-                                            className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors" 
-                                            title="Complete"
-                                        >
-                                            <CheckCircle2 size={18} />
-                                        </button>
-                                    )}
-                                </div>
+                                {canManageRequests && (
+                                  <div className="flex items-center bg-gray-50 rounded-lg p-1 border border-gray-100">
+                                      {req.status === 'Pending' && (
+                                          <button 
+                                              onClick={() => setUpdatingRequest({ id: req.id, nextStatus: 'In Progress' })}
+                                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" 
+                                              title="Start"
+                                          >
+                                              <Wrench size={18} />
+                                          </button>
+                                      )}
+                                      {req.status !== 'Completed' && (
+                                          <button 
+                                              onClick={() => setUpdatingRequest({ id: req.id, nextStatus: 'Completed' })}
+                                              className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors" 
+                                              title="Complete"
+                                          >
+                                              <CheckCircle2 size={18} />
+                                          </button>
+                                      )}
+                                  </div>
+                                )}
                             </div>
                           </div>
                       </div>

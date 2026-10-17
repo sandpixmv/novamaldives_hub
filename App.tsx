@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { Checklist } from './components/Checklist';
@@ -12,9 +12,10 @@ import { GuestRequests } from './components/GuestRequests';
 import { RepeaterGuests } from './components/RepeaterGuests';
 import { Reports } from './components/Reports';
 import { UserProfile } from './components/UserProfile';
-import { ShiftData, ShiftType, TaskCategory, Task, User, ShiftAssignment, AppConfig, TaskTemplate, DailyOccupancy, GuestRequest, RepeaterGuest } from './types';
-import { Menu, LogOut, Bell, AlertCircle, X } from 'lucide-react';
+import { ShiftData, ShiftType, TaskCategory, Task, User, ShiftAssignment, AppConfig, TaskTemplate, DailyOccupancy, GuestRequest, RepeaterGuest, UserRightsConfig, UserRightKey } from './types';
+import { Menu, LogOut, Bell, AlertCircle, X, RefreshCw } from 'lucide-react';
 import { supabase } from './services/supabaseClient';
+import { fetchUserRightsConfig, saveUserRightsConfig, hasUserRight, getInitialRightsConfig } from './services/permissions';
 
 // --- Utils ---
 export const getOperationalDate = () => {
@@ -43,7 +44,15 @@ const INITIAL_USERS: User[] = [
 ];
 
 export const App: React.FC = () => {
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [currentUser, setCurrentUser] = useState<User | null>(() => {
+        try {
+            const saved = localStorage.getItem('hub_current_user');
+            return saved ? JSON.parse(saved) : null;
+        } catch (e) {
+            console.error("Error reading currentUser from localStorage", e);
+            return null;
+        }
+    });
     const [currentView, setCurrentView] = useState('dashboard');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [users, setUsers] = useState<User[]>(INITIAL_USERS);
@@ -64,6 +73,7 @@ export const App: React.FC = () => {
     const [categories, setCategories] = useState<TaskCategory[]>([]);
     const [overdueRequests, setOverdueRequests] = useState<GuestRequest[]>([]);
     const [notifiedRequestIds, setNotifiedRequestIds] = useState<Set<string>>(new Set());
+    const [rightsConfig, setRightsConfig] = useState<UserRightsConfig>(getInitialRightsConfig);
 
     const [currentShift, setCurrentShift] = useState<ShiftData>({
         id: 's1',
@@ -76,14 +86,52 @@ export const App: React.FC = () => {
         notes: ''
     });
 
-    const handleLogin = (user: User) => setCurrentUser(user);
-    const handleLogout = () => { setCurrentUser(null); setCurrentView('dashboard'); };
+    const handleLogin = (user: User) => {
+        setCurrentUser(user);
+        try {
+            localStorage.setItem('hub_current_user', JSON.stringify(user));
+        } catch (e) {
+            console.error("Error saving currentUser to localStorage", e);
+        }
+    };
+    const handleLogout = () => {
+        setCurrentUser(null);
+        setCurrentView('dashboard');
+        try {
+            localStorage.removeItem('hub_current_user');
+        } catch (e) {
+            console.error("Error removing currentUser from localStorage", e);
+        }
+    };
 
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isLiveSyncEnabled, setIsLiveSyncEnabled] = useState<boolean>(() => {
+        try {
+            const saved = localStorage.getItem('hub_live_sync_mode');
+            return saved !== 'false'; // Default to true (Live Sync Enabled)
+        } catch {
+            return true;
+        }
+    });
 
-    const fetchAllData = async () => {
-        setIsSyncing(true);
+    const toggleLiveSync = () => {
+        setIsLiveSyncEnabled(prev => {
+            const next = !prev;
+            try {
+                localStorage.setItem('hub_live_sync_mode', String(next));
+            } catch (e) {
+                console.error("Failed to save live sync preference:", e);
+            }
+            if (next) {
+                fetchAllData(true);
+            }
+            return next;
+        });
+    };
+
+    const fetchAllData = async (silent = false) => {
+        if (!silent) setIsSyncing(true);
         try {
             const opDate = getOperationalDate();
             
@@ -110,6 +158,7 @@ export const App: React.FC = () => {
                     merged.push(initUser);
                   }
                 });
+                if (JSON.stringify(prev) === JSON.stringify(merged)) return prev;
                 return merged;
               });
             }
@@ -119,17 +168,32 @@ export const App: React.FC = () => {
               const mappedTemplates = tmplData.map((t: any) => ({
                   id: t.id, label: t.label, category: t.category, shiftType: t.shift_type
               }));
-              setTemplates(mappedTemplates);
+              setTemplates(prev => {
+                if (JSON.stringify(prev) === JSON.stringify(mappedTemplates)) return prev;
+                return mappedTemplates;
+              });
             }
 
             const { data: occData } = await supabase.from('occupancy').select('*');
-            if (occData) setOccupancyData(occData);
+            if (occData) {
+              setOccupancyData(prev => {
+                if (JSON.stringify(prev) === JSON.stringify(occData)) return prev;
+                return occData;
+              });
+            }
 
             const { data: subData } = await supabase.from('completed_shifts').select('shift_type').eq('date', opDate).eq('status', 'submitted');
-            if (subData) setSubmittedShiftsToday(subData.map((s: any) => s.shift_type));
+            if (subData) {
+              const mappedSub = subData.map((s: any) => s.shift_type);
+              setSubmittedShiftsToday(prev => {
+                if (JSON.stringify(prev) === JSON.stringify(mappedSub)) return prev;
+                return mappedSub;
+              });
+            }
 
             const { data: grData } = await supabase.from('guest_requests').select('*').order('created_at', { ascending: false });
-            if (grData) setGuestRequests(grData.map(r => ({
+            if (grData) {
+              const mappedGr = grData.map(r => ({
                 id: r.id,
                 roomNumber: r.room_number || '',
                 guestName: r.guest_name || '',
@@ -143,10 +207,16 @@ export const App: React.FC = () => {
                 loggedBy: r.logged_by || 'Unknown',
                 remarks: r.remarks,
                 updatedBy: r.updated_by
-            })));
+              }));
+              setGuestRequests(prev => {
+                if (JSON.stringify(prev) === JSON.stringify(mappedGr)) return prev;
+                return mappedGr;
+              });
+            }
 
             const { data: rgData } = await supabase.from('repeater_guests').select('*').order('created_at', { ascending: false });
-            if (rgData) setRepeaterGuests(rgData.map(r => ({
+            if (rgData) {
+              const mappedRg = rgData.map(r => ({
                 id: r.id,
                 guestNames: Array.isArray(r.guest_names) ? r.guest_names : [r.guest_name || 'Unknown'],
                 roomNumber: r.room_number,
@@ -160,61 +230,118 @@ export const App: React.FC = () => {
                 notes: r.notes,
                 createdAt: r.created_at,
                 updatedAt: r.updated_at
-            })));
+              }));
+              setRepeaterGuests(prev => {
+                if (JSON.stringify(prev) === JSON.stringify(mappedRg)) return prev;
+                return mappedRg;
+              });
+            }
 
             const { data: catData } = await supabase.from('task_categories').select('name').order('name');
             if (catData?.length) {
-                setCategories(catData.map(c => c.name));
+                const mappedCats = catData.map(c => c.name);
+                setCategories(prev => {
+                    if (JSON.stringify(prev) === JSON.stringify(mappedCats)) return prev;
+                    return mappedCats;
+                });
             } else {
-                setCategories(['Arrivals', 'Departures', 'Operations', 'Cashiering', 'Concierge']);
+                setCategories(prev => {
+                    const defaultCats = ['Arrivals', 'Departures', 'Operations', 'Cashiering', 'Concierge'];
+                    if (JSON.stringify(prev) === JSON.stringify(defaultCats)) return prev;
+                    return defaultCats;
+                });
             }
 
             const { data: settingsData } = await supabase.from('settings').select('*').eq('id', 'global').maybeSingle();
-            if (settingsData) setAppConfig({
+            if (settingsData) {
+              const newConfig = {
                 appName: settingsData.app_name || 'The HUB | Nova Maldives',
                 logoUrl: settingsData.logo_url || '',
                 loginBgUrl: settingsData.login_bg_url || '',
                 loginFont: (settingsData.login_font as any) || 'Righteous',
                 supportMessage: settingsData.support_message || ''
+              };
+              setAppConfig(prev => {
+                if (JSON.stringify(prev) === JSON.stringify(newConfig)) return prev;
+                return newConfig;
+              });
+            }
+
+            const fetchedRights = await fetchUserRightsConfig();
+            setRightsConfig(prev => {
+              if (JSON.stringify(prev) === JSON.stringify(fetchedRights)) return prev;
+              return fetchedRights;
             });
             
             setLastUpdated(new Date());
         } catch (err) {
             console.error("Error fetching data:", err);
         } finally {
-            setIsSyncing(false);
+            if (!silent) setIsSyncing(false);
         }
+    };
+
+    const handleSaveRightsConfig = async (newConfig: UserRightsConfig) => {
+        setRightsConfig(newConfig);
+        const success = await saveUserRightsConfig(newConfig);
+        return success;
     };
 
     useEffect(() => {
         fetchAllData();
+    }, []);
 
-        // 1. Real-time subscriptions for instant updates
-        const guestRequestsSubscription = supabase
-            .channel('guest_requests_realtime')
+    // Live Sync Mode: Real-time subscriptions & gentle background sync
+    useEffect(() => {
+        if (!isLiveSyncEnabled) return;
+
+        // Set up real-time postgres changes subscription across operational tables
+        const channel = supabase
+            .channel('hub_live_sync_realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'guest_requests' }, () => {
-                fetchAllData();
+                fetchAllData(true);
             })
-            .subscribe();
-
-        const shiftsSubscription = supabase
-            .channel('shifts_realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'repeater_guests' }, () => {
+                fetchAllData(true);
+            })
             .on('postgres_changes', { event: '*', schema: 'public', table: 'completed_shifts' }, () => {
-                fetchAllData();
+                fetchAllData(true);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'occupancy' }, () => {
+                fetchAllData(true);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => {
+                fetchAllData(true);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+                fetchAllData(true);
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'task_templates' }, () => {
+                fetchAllData(true);
             })
             .subscribe();
 
-        // 2. Polling fallback (every 60 seconds) as requested for "frequent refresh"
-        const pollingInterval = setInterval(() => {
-            fetchAllData();
-        }, 60000);
+        // Background sync every 20s as reliable fallback for connection drops
+        const pollInterval = setInterval(() => {
+            fetchAllData(true);
+        }, 20000);
 
         return () => {
-            supabase.removeChannel(guestRequestsSubscription);
-            supabase.removeChannel(shiftsSubscription);
-            clearInterval(pollingInterval);
+            supabase.removeChannel(channel);
+            clearInterval(pollInterval);
         };
-    }, []);
+    }, [isLiveSyncEnabled]);
+
+    const guestRequestsRef = useRef(guestRequests);
+    const notifiedRequestIdsRef = useRef(notifiedRequestIds);
+
+    useEffect(() => {
+        guestRequestsRef.current = guestRequests;
+    }, [guestRequests]);
+
+    useEffect(() => {
+        notifiedRequestIdsRef.current = notifiedRequestIds;
+    }, [notifiedRequestIds]);
 
     // Check for overdue guest requests (not completed within 10 minutes)
     useEffect(() => {
@@ -224,10 +351,13 @@ export const App: React.FC = () => {
             const now = new Date();
             const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
 
-            const newOverdue = guestRequests.filter(req => {
+            const currentRequests = guestRequestsRef.current;
+            const currentNotified = notifiedRequestIdsRef.current;
+
+            const newOverdue = currentRequests.filter(req => {
                 if (req.status === 'Completed' || req.status === 'Cancelled') return false;
                 const createdAt = new Date(req.createdAt);
-                return createdAt < tenMinutesAgo && !notifiedRequestIds.has(req.id);
+                return createdAt < tenMinutesAgo && !currentNotified.has(req.id);
             });
 
             if (newOverdue.length > 0) {
@@ -235,6 +365,7 @@ export const App: React.FC = () => {
                     // Only add if not already in overdue list
                     const existingIds = new Set(prev.map(r => r.id));
                     const uniqueNew = newOverdue.filter(r => !existingIds.has(r.id));
+                    if (uniqueNew.length === 0) return prev;
                     return [...prev, ...uniqueNew];
                 });
             }
@@ -244,7 +375,7 @@ export const App: React.FC = () => {
         checkOverdue(); // Initial check
 
         return () => clearInterval(interval);
-    }, [guestRequests, notifiedRequestIds, currentUser]);
+    }, [currentUser]);
 
     const dismissNotification = (id: string) => {
         setOverdueRequests(prev => prev.filter(r => r.id !== id));
@@ -342,9 +473,9 @@ export const App: React.FC = () => {
 
     const handleReopenShift = async (date: string, shiftType: string) => {
         if (!currentUser) return;
-        const isManager = currentUser.role === 'Front Office Manager' || currentUser.role === 'Asst. FOM';
-        if (!isManager) {
-            alert("Unauthorized. Manager access required.");
+        const canReopen = hasUserRight(currentUser, 'action_reopen_shift', rightsConfig);
+        if (!canReopen) {
+            alert("Unauthorized. Rights to unlock and reopen shifts required. Contact FOM / Admin.");
             return;
         }
 
@@ -544,12 +675,30 @@ export const App: React.FC = () => {
         currentUser ? (
         <div className="flex bg-gray-50 min-h-screen font-sans text-gray-900 relative overflow-x-hidden">
              {isSidebarOpen && <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 md:hidden" onClick={() => setIsSidebarOpen(false)}></div>}
-             <Sidebar currentView={currentView} setCurrentView={(view) => { setCurrentView(view); setIsSidebarOpen(false); }} userRole={currentUser.role} appConfig={appConfig} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+             <Sidebar 
+                currentView={currentView} 
+                setCurrentView={(view) => { setCurrentView(view); setIsSidebarOpen(false); }} 
+                userRole={currentUser.role} 
+                currentUser={currentUser}
+                rightsConfig={rightsConfig}
+                appConfig={appConfig} 
+                isOpen={isSidebarOpen} 
+                onClose={() => setIsSidebarOpen(false)} 
+             />
              <div className="flex-1 md:ml-64 transition-all duration-300 w-full">
                  <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-20">
                      <button className="md:hidden p-2 text-gray-600 hover:text-nova-teal" onClick={() => setIsSidebarOpen(true)}> <Menu size={24} /> </button>
                      <div className="flex items-center gap-4 ml-auto">
                          <div className="flex items-center gap-3">
+                             <button 
+                                onClick={() => fetchAllData(false)} 
+                                disabled={isSyncing}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-gray-600 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 hover:text-nova-teal hover:border-nova-teal active:bg-gray-200 transition-all duration-200 disabled:opacity-50"
+                                title="Refresh/Sync Data"
+                             >
+                                 <RefreshCw size={14} className={`${isSyncing ? 'animate-spin' : ''}`} />
+                                 <span className="hidden sm:inline">{isSyncing ? 'Syncing...' : 'Sync'}</span>
+                             </button>
                              <button 
                                 onClick={() => setCurrentView('profile')}
                                 className="flex items-center gap-3 hover:bg-gray-50 p-1 rounded-xl transition-colors text-left"
@@ -612,93 +761,169 @@ export const App: React.FC = () => {
                         </div>
                     )}
                     {(() => {
-                        // Role-based view protection
-                        if (currentUser.role === 'Asst. FOM') {
-                            const allowedViews = ['dashboard', 'repeater-guests', 'checklist', 'checklist-history', 'guest-requests', 'reports', 'profile'];
-                            if (!allowedViews.includes(currentView)) {
-                                return (
-                                    <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400">
-                                        <AlertCircle size={48} className="mb-4 opacity-20" />
-                                        <h3 className="text-xl font-bold text-gray-800">Access Restricted</h3>
-                                        <p>You do not have permission to view this module.</p>
-                                        <button 
-                                            onClick={() => setCurrentView('dashboard')}
-                                            className="mt-6 px-6 py-2 bg-nova-teal text-white rounded-xl font-bold shadow-lg hover:bg-teal-700 transition-all"
-                                        >
-                                            Return to Dashboard
-                                        </button>
+                        // Dynamic rights-based view protection
+                        const VIEW_RIGHT_MAP: Record<string, UserRightKey> = {
+                            'dashboard': 'view_dashboard',
+                            'guest-requests': 'view_guest_requests',
+                            'repeater-guests': 'view_repeater_guests',
+                            'checklist': 'view_checklist',
+                            'checklist-history': 'view_checklist_history',
+                            'reports': 'view_reports',
+                            'occupancy': 'view_occupancy',
+                            'checklist-management': 'view_checklist_management',
+                            'users': 'view_user_management',
+                            'settings': 'view_settings',
+                        };
+
+                        const requiredRight = VIEW_RIGHT_MAP[currentView];
+                        if (requiredRight && !hasUserRight(currentUser, requiredRight, rightsConfig)) {
+                            return (
+                                <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400 max-w-md mx-auto text-center p-6 animate-fade-in">
+                                    <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center mb-4 border border-amber-200 shadow-sm">
+                                        <AlertCircle size={32} />
                                     </div>
-                                );
-                            }
+                                    <h3 className="text-xl font-bold text-gray-800">Access Restricted</h3>
+                                    <p className="text-sm text-gray-500 mt-2">
+                                        You do not currently have rights to access this module. Please contact your Front Office Manager or Administrator to request access.
+                                    </p>
+                                    <button 
+                                        onClick={() => setCurrentView('dashboard')}
+                                        className="mt-6 px-6 py-2.5 bg-nova-teal text-white rounded-xl font-bold shadow-lg shadow-teal-100 hover:bg-teal-700 transition-all text-sm"
+                                    >
+                                        Return to Dashboard
+                                    </button>
+                                </div>
+                            );
                         }
 
                         switch(currentView) {
                             case 'dashboard': return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onOpenView={(view) => setCurrentView(view)} isSyncing={isSyncing} lastUpdated={lastUpdated} onRefresh={fetchAllData} />;
-                            case 'repeater-guests': return <RepeaterGuests guests={repeaterGuests} onAddGuest={handleAddRepeaterGuest} onUpdateGuest={handleUpdateRepeaterGuest} onDeleteGuest={handleDeleteRepeaterGuest} currentUser={currentUser} logoUrl={appConfig.logoUrl} />;
-                            case 'checklist': return <Checklist shift={currentShift} availableShiftTypes={shiftTypes} submittedShiftsToday={submittedShiftsToday} userRole={currentUser.role} onToggleTask={toggleTask} onUpdateNotes={(n) => setCurrentShift(prev => ({...prev, notes: n}))} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onSubmitShift={() => saveShift(true)} onSaveDraft={() => saveShift(false)} onReopenShift={() => handleReopenShift(currentShift.date, currentShift.type)} />;
-                            case 'checklist-history': return <ChecklistHistory userRole={currentUser.role} onReopenShift={handleReopenShift} appConfig={appConfig} />;
-                            case 'guest-requests': return <GuestRequests requests={guestRequests} onRequestAdd={handleAddGuestRequest} onRequestUpdate={handleUpdateGuestRequest} logoUrl={appConfig.logoUrl} currentUser={currentUser} />;
+                            case 'repeater-guests': return (
+                                <RepeaterGuests 
+                                    guests={repeaterGuests} 
+                                    onAddGuest={handleAddRepeaterGuest} 
+                                    onUpdateGuest={handleUpdateRepeaterGuest} 
+                                    onDeleteGuest={handleDeleteRepeaterGuest} 
+                                    currentUser={currentUser} 
+                                    logoUrl={appConfig.logoUrl}
+                                    canManageRepeaters={hasUserRight(currentUser, 'action_manage_repeater', rightsConfig)}
+                                    canDeleteRepeaters={hasUserRight(currentUser, 'action_delete_repeater', rightsConfig)}
+                                />
+                            );
+                            case 'checklist': return (
+                                <Checklist 
+                                    shift={currentShift} 
+                                    availableShiftTypes={shiftTypes} 
+                                    submittedShiftsToday={submittedShiftsToday} 
+                                    userRole={currentUser.role} 
+                                    canReopen={hasUserRight(currentUser, 'action_reopen_shift', rightsConfig)}
+                                    canSubmit={hasUserRight(currentUser, 'action_submit_shift', rightsConfig)}
+                                    onToggleTask={toggleTask} 
+                                    onUpdateNotes={(n) => setCurrentShift(prev => ({...prev, notes: n}))} 
+                                    onShiftTypeChange={(t) => handleShiftTypeChange(t)} 
+                                    onSubmitShift={() => saveShift(true)} 
+                                    onSaveDraft={() => saveShift(false)} 
+                                    onReopenShift={() => handleReopenShift(currentShift.date, currentShift.type)} 
+                                />
+                            );
+                            case 'checklist-history': return (
+                                <ChecklistHistory 
+                                    userRole={currentUser.role} 
+                                    canReopenShift={hasUserRight(currentUser, 'action_reopen_shift', rightsConfig)}
+                                    onReopenShift={handleReopenShift} 
+                                    appConfig={appConfig} 
+                                />
+                            );
+                            case 'guest-requests': return (
+                                <GuestRequests 
+                                    requests={guestRequests} 
+                                    onRequestAdd={handleAddGuestRequest} 
+                                    onRequestUpdate={handleUpdateGuestRequest} 
+                                    logoUrl={appConfig.logoUrl} 
+                                    currentUser={currentUser}
+                                    canManageRequests={hasUserRight(currentUser, 'action_manage_requests', rightsConfig)}
+                                    canExportData={hasUserRight(currentUser, 'action_export_data', rightsConfig)}
+                                />
+                            );
                             case 'reports': return <Reports appConfig={appConfig} />;
-                            case 'users': return <UserManagement users={users} onAddUser={async (u) => { 
-                                try {
-                                    const dbUser = { 
-                                        username: u.username, 
-                                        name: u.name, 
-                                        role: u.role, 
-                                        initials: u.initials, 
-                                        color: u.color, 
-                                        password: u.password, 
-                                        is_active: u.isActive 
-                                    };
-                                    const { data, error } = await supabase.from('users').insert([dbUser]).select(); 
-                                    if (error) throw error;
-                                    if (data) {
-                                        setUsers(prev => [...prev, { 
-                                            id: data[0].id,
-                                            username: data[0].username,
-                                            name: data[0].name,
-                                            role: data[0].role,
-                                            initials: data[0].initials,
-                                            color: data[0].color,
-                                            password: data[0].password,
-                                            isActive: data[0].is_active 
-                                        } as User]); 
-                                    }
-                                } catch (err: any) {
-                                    alert("Error creating user: " + err.message);
-                                    throw err;
-                                }
-                            }} onEditUser={async (u) => { 
-                                try {
-                                    const dbUser = { 
-                                      username: u.username, 
-                                      name: u.name, 
-                                      role: u.role, 
-                                      initials: u.initials, 
-                                      color: u.color, 
-                                      password: u.password, 
-                                      is_active: u.isActive 
-                                    };
-                                    const { error } = await supabase.from('users').update(dbUser).eq('id', u.id); 
-                                    if (error) throw error;
-                                    setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr)); 
-                                } catch (err: any) {
-                                    alert("Error updating user: " + err.message);
-                                    throw err;
-                                }
-                            }} onDeleteUser={async (id) => { 
-                                try {
-                                    const { error } = await supabase.from('users').delete().eq('id', id); 
-                                    if (error) throw error;
-                                    setUsers(prev => prev.filter(u => u.id !== id)); 
-                                } catch (err: any) {
-                                    alert("Error deleting user: " + err.message);
-                                }
-                            }} />;
+                            case 'users': return (
+                                <UserManagement 
+                                    users={users} 
+                                    currentUser={currentUser}
+                                    rightsConfig={rightsConfig}
+                                    onSaveRightsConfig={handleSaveRightsConfig}
+                                    onAddUser={async (u) => { 
+                                        try {
+                                            const dbUser = { 
+                                                username: u.username, 
+                                                name: u.name, 
+                                                role: u.role, 
+                                                initials: u.initials, 
+                                                color: u.color, 
+                                                password: u.password, 
+                                                is_active: u.isActive 
+                                            };
+                                            const { data, error } = await supabase.from('users').insert([dbUser]).select(); 
+                                            if (error) throw error;
+                                            if (data) {
+                                                setUsers(prev => [...prev, { 
+                                                    id: data[0].id,
+                                                    username: data[0].username,
+                                                    name: data[0].name,
+                                                    role: data[0].role,
+                                                    initials: data[0].initials,
+                                                    color: data[0].color,
+                                                    password: data[0].password,
+                                                    isActive: data[0].is_active 
+                                                } as User]); 
+                                            }
+                                        } catch (err: any) {
+                                            alert("Error creating user: " + err.message);
+                                            throw err;
+                                        }
+                                    }} 
+                                    onEditUser={async (u) => { 
+                                        try {
+                                            const dbUser = { 
+                                              username: u.username, 
+                                              name: u.name, 
+                                              role: u.role, 
+                                              initials: u.initials, 
+                                              color: u.color, 
+                                              password: u.password, 
+                                              is_active: u.isActive 
+                                            };
+                                            const { error } = await supabase.from('users').update(dbUser).eq('id', u.id); 
+                                            if (error) throw error;
+                                            setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr)); 
+                                        } catch (err: any) {
+                                            alert("Error updating user: " + err.message);
+                                            throw err;
+                                        }
+                                    }} 
+                                    onDeleteUser={async (id) => { 
+                                        try {
+                                            const { error } = await supabase.from('users').delete().eq('id', id); 
+                                            if (error) throw error;
+                                            setUsers(prev => prev.filter(u => u.id !== id)); 
+                                        } catch (err: any) {
+                                            alert("Error deleting user: " + err.message);
+                                        }
+                                    }} 
+                                />
+                            );
                             case 'occupancy': return <OccupancyManagement occupancyData={occupancyData} onUpdateOccupancy={async (d) => { await supabase.from('occupancy').upsert(d); setOccupancyData(d); }} />;
                             case 'checklist-management': return <ChecklistManagement templates={templates} availableShifts={shiftTypes} availableCategories={categories} onAddTemplate={async (t) => { const {data} = await supabase.from('task_templates').insert([{label: t.label, category: t.category, shift_type: t.shiftType}]).select(); if(data) setTemplates(prev => [...prev, {id: data[0].id, label: data[0].label, category: data[0].category, shiftType: data[0].shift_type}]); }} onDeleteTemplate={async (id) => { await supabase.from('task_templates').delete().eq('id', id); setTemplates(prev => prev.filter(t => t.id !== id)); }} onAddShift={()=>{}} onDeleteShift={()=>{}} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />;
-                            case 'settings': return <Settings userRole={currentUser.role} config={appConfig} onSave={async (c) => { await supabase.from('settings').upsert({id: 'global', app_name: c.appName, logo_url: c.logoUrl, login_bg_url: c.loginBgUrl, login_font: c.loginFont, support_message: c.supportMessage}); setAppConfig(c); }} />;
-                            case 'profile': return <UserProfile user={currentUser} onUpdateUser={(u) => { setCurrentUser(u); setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr)); }} />;
+                            case 'settings': return <Settings userRole={currentUser.role} canEditSettings={hasUserRight(currentUser, 'action_manage_settings', rightsConfig)} config={appConfig} onSave={async (c) => { await supabase.from('settings').upsert({id: 'global', app_name: c.appName, logo_url: c.logoUrl, login_bg_url: c.loginBgUrl, login_font: c.loginFont, support_message: c.supportMessage}); setAppConfig(c); }} />;
+                            case 'profile': return <UserProfile user={currentUser} rightsConfig={rightsConfig} onUpdateUser={(u) => { 
+                                setCurrentUser(u); 
+                                try {
+                                    localStorage.setItem('hub_current_user', JSON.stringify(u));
+                                } catch (e) {
+                                    console.error("Error saving updated currentUser to localStorage", e);
+                                }
+                                setUsers(prev => prev.map(usr => usr.id === u.id ? u : usr)); 
+                            }} />;
                             default: return <Dashboard currentShift={currentShift} startNewShift={()=>{}} openChecklist={() => setCurrentView('checklist')} users={users} currentUser={currentUser} availableShifts={shiftTypes} occupancyData={occupancyData} guestRequests={guestRequests} onShiftTypeChange={(t) => handleShiftTypeChange(t)} onOpenView={(view) => setCurrentView(view)} />;
                         }
                     })()}

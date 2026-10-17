@@ -4,11 +4,12 @@ import { Save, Layout, Image, ShieldAlert, Check, Upload, X, MessageSquare, Load
 
 interface SettingsProps {
   userRole?: UserRole;
+  canEditSettings?: boolean;
   config: AppConfig;
   onSave: (newConfig: AppConfig) => Promise<void>;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ userRole, config, onSave }) => {
+export const Settings: React.FC<SettingsProps> = ({ userRole, canEditSettings, config, onSave }) => {
   const [appName, setAppName] = useState(config.appName);
   const [logoUrl, setLogoUrl] = useState(config.logoUrl);
   const [loginBgUrl, setLoginBgUrl] = useState(config.loginBgUrl || '');
@@ -28,7 +29,9 @@ export const Settings: React.FC<SettingsProps> = ({ userRole, config, onSave }) 
     setSupportMessage(config.supportMessage || '');
   }, [config]);
 
-  const canEdit = userRole === 'Front Office Manager';
+  const canEdit = canEditSettings !== undefined 
+    ? canEditSettings 
+    : (userRole === 'Front Office Manager' || userRole === 'Admin');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
